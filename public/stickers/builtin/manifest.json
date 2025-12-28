@@ -1,0 +1,70 @@
+{
+  "packs": [
+    {
+      "id": "pins",
+      "name": "Pins",
+      "items": [
+        {
+          "id": "paperclip",
+          "name": "paperclip",
+          "kind": "image",
+          "url": "/stickers/builtin/pins/paperclip.png"
+        },
+        {
+          "id": "pin-red",
+          "name": "pin-red",
+          "kind": "image",
+          "url": "/stickers/builtin/pins/pin-red.png"
+        },
+        {
+          "id": "pushpin",
+          "name": "pushpin",
+          "kind": "image",
+          "url": "/stickers/builtin/pins/pushpin.png"
+        }
+      ]
+    },
+    {
+      "id": "washi",
+      "name": "Washi",
+      "items": [
+        {
+          "id": "tape1",
+          "name": "tape1",
+          "kind": "image",
+          "url": "/stickers/builtin/washi/tape1.png"
+        },
+        {
+          "id": "tape2",
+          "name": "tape2",
+          "kind": "image",
+          "url": "/stickers/builtin/washi/tape2.png"
+        },
+        {
+          "id": "tape3",
+          "name": "tape3",
+          "kind": "image",
+          "url": "/stickers/builtin/washi/tape3.png"
+        },
+        {
+          "id": "tape4",
+          "name": "tape4",
+          "kind": "image",
+          "url": "/stickers/builtin/washi/tape4.png"
+        },
+        {
+          "id": "tape5",
+          "name": "tape5",
+          "kind": "image",
+          "url": "/stickers/builtin/washi/tape5.png"
+        },
+        {
+          "id": "tape6",
+          "name": "tape6",
+          "kind": "image",
+          "url": "/stickers/builtin/washi/tape6.png"
+        }
+      ]
+    }
+  ]
+}

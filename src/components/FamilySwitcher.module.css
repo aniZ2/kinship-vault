@@ -1,0 +1,30 @@
+.wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.label {
+  font-size: 12px;
+  color: var(--muted-ink, #6b5f55);
+}
+
+.select {
+  appearance: none;
+  background: var(--paper, #fff);
+  border: 1px solid var(--line, #e7ded5);
+  border-radius: 10px;
+  padding: 6px 10px;
+  color: var(--ink, #3b342d);
+  font: inherit;
+}
+
+.select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.loading, .empty {
+  font-size: 12px;
+  color: var(--muted-ink, #6b5f55);
+}

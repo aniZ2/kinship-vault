@@ -1,0 +1,152 @@
+/* src/styles/familygate.css */
+
+.familygate-root {
+  min-height: 100vh;
+  background: #FDF8F0;
+  color: #4A4A4A;
+}
+
+.familygate-header {
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.familygate-header h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-family: serif;
+  margin: 0;
+}
+
+.familygate-header p {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+.familygate-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+  color: #4b5563;
+}
+
+.familygate-main {
+  max-width: 56rem;
+  margin: 0 auto;
+  padding: 1rem 1rem 2rem;
+}
+
+@media (min-width: 768px) {
+  .familygate-main {
+    padding: 2rem;
+  }
+}
+
+.familygate-main > * + * {
+  margin-top: 2rem;
+}
+
+.familygate-message {
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid #fcd34d;
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.familygate-section {
+  background: #fff;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  padding: 1rem 1.5rem;
+}
+
+.familygate-section h2 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem;
+}
+
+.familygate-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .familygate-form {
+    flex-direction: row;
+  }
+}
+
+.familygate-form-grid {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .familygate-form-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.familygate-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.familygate-list > * + * {
+  margin-top: 0.75rem;
+}
+
+.familygate-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+}
+
+.familygate-list-item-info {
+  flex: 1;
+}
+
+.familygate-list-item-name {
+  font-weight: 600;
+}
+
+.familygate-list-item-meta {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-family: monospace;
+}
+
+.familygate-list-item-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.familygate-empty {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.familygate-limit-warning {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  color: #e11d48;
+}

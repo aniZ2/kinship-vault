@@ -1,0 +1,1231 @@
+/* src/components/ScrapbookEditor/ScrapbookEditor.module.css */
+
+/* ============================================================================
+   CONTAINER
+   ============================================================================ */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  background: #f5f0e8;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ============================================================================
+   HEADER
+   ============================================================================ */
+
+.header {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-bottom: 1px solid #e5e0d8;
+  flex-shrink: 0;
+  z-index: 50;
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Tools Row */
+.toolsRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  border-top: 1px solid #e5e0d8;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  position: relative;
+}
+
+.toolsRow::-webkit-scrollbar {
+  display: none;
+}
+
+.toolDivider {
+  width: 1px;
+  height: 24px;
+  background: #e5e0d8;
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+.filterPickerInline {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  padding: 10px 12px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 90vw;
+}
+
+.undoRedoBtns {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.undoBtn,
+.redoBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: #f5f0e8;
+  border-radius: 8px;
+  color: #4a4a4a;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.undoBtn:hover:not(:disabled),
+.redoBtn:hover:not(:disabled) {
+  background: #ebe5db;
+}
+
+.undoBtn:active:not(:disabled),
+.redoBtn:active:not(:disabled) {
+  background: #ddd7cc;
+}
+
+.undoBtn:disabled,
+.redoBtn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.menuBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: transparent;
+  border-radius: 12px;
+  color: #4a4a4a;
+  cursor: pointer;
+}
+
+.menuBtn:active {
+  background: #f5f0e8;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #2b2b2b;
+}
+
+.saveBtn {
+  padding: 10px 20px;
+  border: none;
+  background: #e11d48;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.saveBtn:hover {
+  background: #be123c;
+}
+
+.saveBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ============================================================================
+   OVERLAY
+   ============================================================================ */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 60;
+}
+
+/* ============================================================================
+   SIDE DRAWER
+   ============================================================================ */
+
+.drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 280px;
+  background: #fff;
+  z-index: 70;
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
+}
+
+.drawerOpen {
+  transform: translateX(0);
+}
+
+.drawerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e0d8;
+  font-weight: 600;
+  font-size: 18px;
+  color: #2b2b2b;
+}
+
+.drawerHeader button {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: #f5f0e8;
+  border-radius: 8px;
+  font-size: 20px;
+  cursor: pointer;
+  color: #666;
+}
+
+.drawerTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 16px;
+  border-bottom: 1px solid #e5e0d8;
+}
+
+.tabBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid #e5e0d8;
+  background: #fff;
+  border-radius: 12px;
+  font-size: 11px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex: 1;
+  min-width: 56px;
+}
+
+.tabBtn:first-child {
+  font-size: 18px;
+}
+
+.tabBtn span {
+  font-size: 10px;
+}
+
+.activeTab {
+  background: #fdf8f0;
+  border-color: #e11d48;
+  color: #e11d48;
+}
+
+.drawerContent {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.tabPanel h4 {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.hint {
+  color: #999;
+  font-size: 14px;
+  text-align: center;
+  padding: 20px;
+}
+
+/* ============================================================================
+   PHOTO TAB
+   ============================================================================ */
+
+.uploadBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  padding: 32px;
+  border: 2px dashed #d4c9b8;
+  border-radius: 16px;
+  background: #fdf8f0;
+  color: #8b7355;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.uploadBtn:hover {
+  border-color: #e11d48;
+  color: #e11d48;
+}
+
+.hiddenInput {
+  display: none;
+}
+
+/* ============================================================================
+   TEXT TAB
+   ============================================================================ */
+
+.addTextBtn {
+  width: 100%;
+  padding: 16px;
+  border: 1px solid #e5e0d8;
+  background: #fff;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #2b2b2b;
+  cursor: pointer;
+  margin-bottom: 20px;
+}
+
+.addTextBtn:hover {
+  background: #fdf8f0;
+}
+
+.textOptions {
+  margin-top: 16px;
+}
+
+.fontGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.fontBtn {
+  padding: 12px 16px;
+  border: 1px solid #e5e0d8;
+  background: #fff;
+  border-radius: 10px;
+  font-size: 18px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.activeFont {
+  border-color: #e11d48;
+  background: #fdf8f0;
+}
+
+.colorGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.colorBtn {
+  aspect-ratio: 1;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+
+.colorBtn:hover {
+  transform: scale(1.1);
+}
+
+.activeColor {
+  border-color: #2b2b2b;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #2b2b2b;
+}
+
+/* ============================================================================
+   STICKER TAB
+   ============================================================================ */
+
+.stickerCategory {
+  margin-bottom: 20px;
+}
+
+.stickerGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.stickerBtn {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e5e0d8;
+  background: #fff;
+  border-radius: 12px;
+  font-size: 24px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.stickerBtn:hover {
+  background: #fdf8f0;
+  transform: scale(1.1);
+}
+
+/* ============================================================================
+   FRAME TAB
+   ============================================================================ */
+
+.frameGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.frameBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1px solid #e5e0d8;
+  background: #fff;
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.frameBtn:hover {
+  background: #fdf8f0;
+}
+
+.activeFrame {
+  border-color: #e11d48;
+  background: #fdf8f0;
+}
+
+.frameLabel {
+  font-weight: 600;
+  color: #2b2b2b;
+}
+
+.frameDesc {
+  font-size: 12px;
+  color: #888;
+}
+
+/* ============================================================================
+   BACKGROUND TAB
+   ============================================================================ */
+
+.bgGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.bgBtn {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 8px;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  color: #2b2b2b;
+  text-shadow: 0 1px 2px rgba(255,255,255,0.8);
+  transition: all 0.15s;
+}
+
+.bgBtn:hover {
+  transform: scale(1.02);
+}
+
+.activeBg {
+  border-color: #e11d48;
+  box-shadow: 0 0 0 2px rgba(225, 29, 72, 0.2);
+}
+
+/* ============================================================================
+   EDITING TOOLBAR
+   ============================================================================ */
+
+.editToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #fff;
+  border-bottom: 1px solid #e5e0d8;
+  flex-shrink: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.toolGroup {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  border-right: 1px solid #e5e0d8;
+}
+
+.toolGroup:last-child {
+  border-right: none;
+}
+
+.toolBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: #f5f0e8;
+  border-radius: 8px;
+  color: #4a4a4a;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.toolBtn:hover {
+  background: #ebe5db;
+}
+
+.toolBtn:active {
+  background: #ddd7cc;
+  transform: scale(0.95);
+}
+
+.deleteToolBtn {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.deleteToolBtn:hover {
+  background: #fecaca;
+}
+
+.deleteToolBtn:active {
+  background: #fca5a5;
+}
+
+.toolBtnActive {
+  background: #e11d48;
+  color: #fff;
+}
+
+.toolBtnActive:hover {
+  background: #be123c;
+}
+
+/* Filter Picker */
+.filterPicker {
+  display: flex;
+  gap: 6px;
+  padding: 0 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.filterBtn {
+  padding: 6px 12px;
+  border: 1px solid #e5e0d8;
+  background: #fff;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #4a4a4a;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.filterBtn:hover {
+  background: #f5f0e8;
+}
+
+.filterBtnActive {
+  background: #e11d48;
+  border-color: #e11d48;
+  color: #fff;
+}
+
+.filterBtnActive:hover {
+  background: #be123c;
+}
+
+/* Mobile: smaller buttons */
+@media (max-width: 480px) {
+  .editToolbar {
+    gap: 4px;
+    padding: 8px 12px;
+    flex-wrap: wrap;
+  }
+
+  .toolGroup {
+    gap: 2px;
+    padding: 0 6px;
+  }
+
+  .toolBtn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .toolBtn svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .filterPicker {
+    width: 100%;
+    padding: 8px 0 0;
+    border-top: 1px solid #e5e0d8;
+    margin-top: 4px;
+  }
+
+  .filterBtn {
+    padding: 5px 10px;
+    font-size: 11px;
+  }
+}
+
+/* ============================================================================
+   CANVAS
+   ============================================================================ */
+
+.canvasWrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overflow: hidden;
+}
+
+.canvas {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  aspect-ratio: 4 / 5;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+}
+
+@media (min-width: 600px) {
+  .canvas {
+    max-width: 500px;
+  }
+}
+
+/* ============================================================================
+   CANVAS ITEMS
+   ============================================================================ */
+
+.item {
+  position: absolute;
+  cursor: grab;
+  touch-action: none;
+}
+
+.item:active {
+  cursor: grabbing;
+}
+
+.selected {
+  z-index: 100 !important;
+}
+
+.selected::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border: 2px dashed #e11d48;
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+.deleteBtn {
+  position: absolute;
+  top: -12px;
+  right: -12px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: #e11d48;
+  color: #fff;
+  font-size: 18px;
+  font-weight: bold;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  z-index: 10;
+}
+
+/* ============================================================================
+   ROTATION HANDLE
+   ============================================================================ */
+
+.rotateHandleWrapper {
+  position: absolute;
+  top: -40px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 10;
+}
+
+.rotateHandleLine {
+  width: 2px;
+  height: 16px;
+  background: #e11d48;
+}
+
+.rotateHandle {
+  width: 28px;
+  height: 28px;
+  background: #fff;
+  border: 2px solid #e11d48;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  touch-action: none;
+  color: #e11d48;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.rotateHandle:active {
+  cursor: grabbing;
+  background: #e11d48;
+  color: #fff;
+}
+
+/* Make rotation handle larger on touch devices */
+@media (pointer: coarse) {
+  .rotateHandleWrapper {
+    top: -48px;
+  }
+
+  .rotateHandleLine {
+    height: 20px;
+  }
+
+  .rotateHandle {
+    width: 36px;
+    height: 36px;
+  }
+
+  .rotateHandle svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+/* ============================================================================
+   RESIZE HANDLES
+   ============================================================================ */
+
+.resizeHandle {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  background: #fff;
+  border: 2px solid #e11d48;
+  border-radius: 50%;
+  touch-action: none;
+  z-index: 5;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.resizeHandle::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  background: #e11d48;
+  border-radius: 50%;
+}
+
+.resizeHandleTL {
+  top: -12px;
+  left: -12px;
+  cursor: nwse-resize;
+}
+
+.resizeHandleTR {
+  top: -12px;
+  right: -12px;
+  cursor: nesw-resize;
+}
+
+.resizeHandleBL {
+  bottom: -12px;
+  left: -12px;
+  cursor: nesw-resize;
+}
+
+.resizeHandleBR {
+  bottom: -12px;
+  right: -12px;
+  cursor: nwse-resize;
+}
+
+/* Make handles larger on touch devices */
+@media (pointer: coarse) {
+  .resizeHandle {
+    width: 32px;
+    height: 32px;
+  }
+
+  .resizeHandleTL {
+    top: -16px;
+    left: -16px;
+  }
+
+  .resizeHandleTR {
+    top: -16px;
+    right: -16px;
+  }
+
+  .resizeHandleBL {
+    bottom: -16px;
+    left: -16px;
+  }
+
+  .resizeHandleBR {
+    bottom: -16px;
+    right: -16px;
+  }
+
+  .deleteBtn {
+    width: 32px;
+    height: 32px;
+    top: -16px;
+    right: -16px;
+    font-size: 20px;
+  }
+}
+
+/* ============================================================================
+   IMAGE FRAMES
+   ============================================================================ */
+
+.imageWrapper {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.uploadingOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: #666;
+}
+
+/* Polaroid Frame */
+.frame_polaroid {
+  background: #fff;
+  padding: 8px 8px 0 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.frame_polaroid .imageWrapper {
+  height: calc(100% - 40px);
+}
+
+.polaroidCaption {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.captionText {
+  font-family: 'Caveat', cursive;
+  font-size: 16px;
+  color: #555;
+  outline: none;
+  cursor: text;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background 0.15s;
+  min-width: 20px;
+  display: inline-block;
+}
+
+.captionText:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.captionText:focus {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+/* Simple Frame */
+.frame_simple {
+  background: #fff;
+  padding: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Vintage Frame */
+.frame_vintage {
+  background: #f5f0e0;
+  padding: 6px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+}
+
+.frame_vintage .image {
+  filter: sepia(30%) contrast(90%);
+}
+
+/* Circle Frame */
+.frame_circle {
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.frame_circle .imageWrapper,
+.frame_circle .image {
+  border-radius: 50%;
+}
+
+/* No Frame */
+.frame_none {
+  /* No styles needed */
+}
+
+/* ============================================================================
+   TEXT CONTENT
+   ============================================================================ */
+
+.textContent {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  outline: none;
+  word-break: break-word;
+  padding: 4px;
+}
+
+/* ============================================================================
+   STICKER CONTENT
+   ============================================================================ */
+
+.stickerContent {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+}
+
+/* ============================================================================
+   WASHI TAPE
+   ============================================================================ */
+
+.tapeGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.tapeBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #e5e0d8;
+  background: #fff;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.tapeBtn:hover {
+  background: #fdf8f0;
+  transform: scale(1.02);
+}
+
+.tapePreview {
+  width: 100%;
+  height: 20px;
+  border-radius: 2px;
+  opacity: 0.85;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: rgba(0,0,0,0.4);
+  letter-spacing: 2px;
+}
+
+.tapeLabel {
+  font-size: 12px;
+  color: #666;
+}
+
+.tapeContent {
+  width: 100%;
+  height: 100%;
+  opacity: 0.85;
+  border-radius: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Torn edge effect */
+  mask-image: linear-gradient(90deg,
+    transparent 0%,
+    black 2%,
+    black 98%,
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(90deg,
+    transparent 0%,
+    black 2%,
+    black 98%,
+    transparent 100%
+  );
+}
+
+.tapePattern {
+  font-size: 10px;
+  color: rgba(0,0,0,0.3);
+  letter-spacing: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* ============================================================================
+   CROP MODAL
+   ============================================================================ */
+
+.cropModal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: #1a1a1a;
+  display: flex;
+  flex-direction: column;
+}
+
+.cropHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #2a2a2a;
+  flex-shrink: 0;
+}
+
+.cropTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.cropCancelBtn,
+.cropApplyBtn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cropCancelBtn {
+  background: transparent;
+  color: #fff;
+}
+
+.cropApplyBtn {
+  background: #e11d48;
+  color: #fff;
+}
+
+.cropContainer {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  overflow: hidden;
+}
+
+.cropImageWrapper {
+  position: relative;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.cropImage {
+  display: block;
+  max-width: 100%;
+  max-height: calc(100vh - 120px);
+  object-fit: contain;
+}
+
+.cropOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+}
+
+.cropDarkTop {
+  height: var(--crop-y);
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.cropMiddleRow {
+  display: flex;
+  height: var(--crop-h);
+}
+
+.cropDarkLeft {
+  width: var(--crop-x);
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.cropSelection {
+  width: var(--crop-w);
+  height: 100%;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
+  cursor: move;
+  pointer-events: auto;
+  position: relative;
+  touch-action: none;
+}
+
+.cropDarkRight {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.cropDarkBottom {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.cropCorner {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background: #fff;
+  border-radius: 50%;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.cropCorner[data-pos="tl"] {
+  top: -10px;
+  left: -10px;
+  cursor: nwse-resize;
+}
+
+.cropCorner[data-pos="tr"] {
+  top: -10px;
+  right: -10px;
+  cursor: nesw-resize;
+}
+
+.cropCorner[data-pos="bl"] {
+  bottom: -10px;
+  left: -10px;
+  cursor: nesw-resize;
+}
+
+.cropCorner[data-pos="br"] {
+  bottom: -10px;
+  right: -10px;
+  cursor: nwse-resize;
+}
+
+/* ============================================================================
+   SAFE AREA
+   ============================================================================ */
+
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .container {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

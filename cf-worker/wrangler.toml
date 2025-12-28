@@ -1,0 +1,16 @@
+name = "kv-images-worker"
+main = "src/worker.js"
+compatibility_date = "2024-12-01"
+
+# R2 bucket binding
+[[r2_buckets]]
+binding = "IMAGES_BUCKET"
+bucket_name = "kinship-vault-images"
+
+[vars]
+ALLOWED_ORIGINS = "https://kinshipvault.com,https://www.kinshipvault.com,http://localhost:3000,http://localhost:5173"
+REQUIRE_AUTH = "1"
+FIREBASE_PROJECT_ID = "kinshipvault-47ad0"
+
+# Required secrets (set via `wrangler secret put ...`):
+# - CF_ACCOUNT_ID (for bucket creation)

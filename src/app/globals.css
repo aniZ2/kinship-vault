@@ -1,0 +1,148 @@
+@import "tailwindcss";
+
+:root {
+  --background: #FDF8F0;
+  --foreground: #4A4A4A;
+  --primary: #e11d48;
+  --primary-hover: #be123c;
+  --accent: #f59e0b;
+  --muted: #6b7280;
+  --card: #ffffff;
+  --border: #e5e7eb;
+  
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-handwriting: 'Caveat', cursive;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  min-height: 100dvh;
+}
+
+/* Base button styles */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+  background: var(--primary);
+  color: #fff;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn.ghost {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--foreground);
+}
+
+.btn.ghost:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.btn.link {
+  background: transparent;
+  border: none;
+  color: var(--primary);
+  padding: 0;
+}
+
+.btn.link:hover {
+  text-decoration: underline;
+}
+
+.btn.primary {
+  background: var(--primary);
+  color: #fff;
+}
+
+/* Form inputs */
+.input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  background: #fff;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.1);
+}
+
+.input.textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+/* Card styles */
+.card {
+  background: var(--card);
+  border-radius: 1rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  padding: 1.5rem;
+}
+
+/* Utility classes */
+.text-muted {
+  color: var(--muted);
+}
+
+.text-primary {
+  color: var(--primary);
+}
+
+/* Hide on mobile/desktop */
+@media (max-width: 768px) {
+  .hide-mobile {
+    display: none !important;
+  }
+}
+
+@media (min-width: 769px) {
+  .hide-desktop {
+    display: none !important;
+  }
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Focus visible styles */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Selection colors */
+::selection {
+  background: rgba(225, 29, 72, 0.2);
+}

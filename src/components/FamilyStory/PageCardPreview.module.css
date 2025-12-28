@@ -1,0 +1,118 @@
+/* src/components/FamilyStory/PageCardPreview.module.css */
+
+.previewRoot {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  background: #f4f2ee;
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.04);
+}
+
+.sizeS { aspect-ratio: 4 / 3; }
+.sizeM { aspect-ratio: 4 / 3; }
+.sizeL { aspect-ratio: 3 / 2; }
+
+.coverImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.caption {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  line-height: 1.2;
+  border-radius: 8px;
+  background: rgba(255,255,255,.78);
+  color: #222;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  backdrop-filter: saturate(1.2) blur(4px);
+  box-shadow: 0 1px 2px rgba(0,0,0,.12);
+}
+
+.grid {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  gap: 2px;
+  background: #eae6df;
+}
+
+.grid img,
+.gridItem img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.gridItem {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.cols2 {
+  grid-template-columns: 1fr 1fr;
+  grid-auto-rows: 1fr;
+}
+
+.layout3 {
+  grid-template-columns: 1fr 1fr;
+  grid-auto-rows: 1fr;
+}
+
+.span2 {
+  grid-column: 1 / -1;
+  height: 100%;
+}
+
+/* Fallback */
+.fallback {
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #f7f5f1, #ece8e1);
+}
+
+.fallbackInner {
+  text-align: center;
+  color: #6a5f52;
+  max-width: 80%;
+}
+
+.fallbackIcon {
+  font-size: 28px;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.fallbackTitle {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Skeleton */
+.skeleton {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(0,0,0,0.04) 25%, rgba(0,0,0,0.08) 37%, rgba(0,0,0,0.04) 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.2s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: 0 0; }
+}

@@ -1,0 +1,747 @@
+/* Canvas.module.css - Mobile-first scrapbook editor */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  background: #f8fafc;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ============================================================================
+   HEADER
+   ============================================================================ */
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+  z-index: 100;
+  gap: 8px;
+}
+
+.headerBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: transparent;
+  border-radius: 12px;
+  color: #374151;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.headerBtn:hover {
+  background: #f3f4f6;
+}
+
+.headerBtn:active {
+  background: #e5e7eb;
+}
+
+.headerBtn:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.headerActions {
+  display: flex;
+  gap: 4px;
+}
+
+.saveBtn {
+  width: auto;
+  padding: 0 20px;
+  background: #3b82f6;
+  color: #fff;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.saveBtn:hover {
+  background: #2563eb;
+}
+
+.saveBtn:active {
+  background: #1d4ed8;
+}
+
+/* ============================================================================
+   CANVAS
+   ============================================================================ */
+
+.canvasWrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  overflow: hidden;
+}
+
+.canvas {
+  position: relative;
+  width: 100%;
+  max-width: 600px;
+  aspect-ratio: 4 / 5;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  touch-action: none;
+  background-size: cover;
+  background-position: center;
+}
+
+/* On landscape or larger screens, use different aspect ratio */
+@media (min-aspect-ratio: 1/1) and (min-width: 600px) {
+  .canvas {
+    aspect-ratio: 16 / 11;
+    max-width: 800px;
+  }
+}
+
+/* ============================================================================
+   ITEMS
+   ============================================================================ */
+
+.item {
+  position: absolute;
+  cursor: grab;
+  touch-action: none;
+}
+
+.item:active {
+  cursor: grabbing;
+}
+
+.selected {
+  z-index: 1000 !important;
+}
+
+.selectionRing {
+  position: absolute;
+  inset: -4px;
+  border: 3px solid #3b82f6;
+  border-radius: 8px;
+  pointer-events: none;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.3);
+}
+
+.textContent {
+  -webkit-user-select: text;
+  user-select: text;
+  word-break: break-word;
+  cursor: text;
+}
+
+.textContent:focus {
+  outline: none;
+}
+
+/* ============================================================================
+   QUICK ACTIONS (floating above selected item)
+   ============================================================================ */
+
+.quickActions {
+  position: fixed;
+  bottom: 140px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  z-index: 90;
+}
+
+.quickActions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border: none;
+  background: #f3f4f6;
+  border-radius: 12px;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.quickActions button:hover {
+  background: #e5e7eb;
+}
+
+.quickActions button:active {
+  transform: scale(0.95);
+}
+
+.quickActions .deleteBtn {
+  color: #ef4444;
+  background: #fef2f2;
+}
+
+.quickActions .deleteBtn:hover {
+  background: #fee2e2;
+}
+
+/* ============================================================================
+   BOTTOM TOOLBAR
+   ============================================================================ */
+
+.toolbar {
+  display: flex;
+  justify-content: space-around;
+  padding: 8px 16px 24px;
+  background: #fff;
+  border-top: 1px solid #e5e7eb;
+  flex-shrink: 0;
+  z-index: 100;
+}
+
+/* Safe area for iPhone notch */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .toolbar {
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+}
+
+.toolBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 12px;
+  transition: all 0.15s;
+  min-width: 64px;
+}
+
+.toolBtn svg {
+  transition: transform 0.15s;
+}
+
+.toolBtn:hover {
+  background: #f3f4f6;
+}
+
+.toolBtn:active {
+  transform: scale(0.95);
+}
+
+.toolBtn.active {
+  color: #3b82f6;
+  background: #eff6ff;
+}
+
+.toolBtn.active svg {
+  transform: scale(1.1);
+}
+
+/* ============================================================================
+   BOTTOM SHEET
+   ============================================================================ */
+
+.sheetOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.sheet {
+  width: 100%;
+  max-height: 70vh;
+  background: #fff;
+  border-radius: 24px 24px 0 0;
+  overflow: hidden;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.sheetHandle {
+  width: 40px;
+  height: 4px;
+  background: #d1d5db;
+  border-radius: 2px;
+  margin: 12px auto;
+}
+
+.sheetContent {
+  padding: 0 20px 32px;
+  overflow-y: auto;
+  max-height: calc(70vh - 40px);
+}
+
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .sheetContent {
+    padding-bottom: calc(32px + env(safe-area-inset-bottom));
+  }
+}
+
+.sheetContent h3 {
+  margin: 0 0 16px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.sheetContent h4 {
+  margin: 20px 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+/* ============================================================================
+   PHOTO UPLOAD
+   ============================================================================ */
+
+.uploadBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  padding: 32px;
+  border: 2px dashed #d1d5db;
+  border-radius: 16px;
+  background: #f9fafb;
+  color: #6b7280;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.uploadBtn:hover {
+  border-color: #3b82f6;
+  background: #eff6ff;
+  color: #3b82f6;
+}
+
+.uploadBtn:active {
+  transform: scale(0.98);
+}
+
+.hidden {
+  display: none;
+}
+
+/* ============================================================================
+   TEXT STYLES
+   ============================================================================ */
+
+.textStyles {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.textStyleBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.textStyleBtn:hover {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.textStyleBtn:active {
+  transform: scale(0.98);
+}
+
+/* ============================================================================
+   STICKERS
+   ============================================================================ */
+
+.stickerGrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.stickerBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+  font-size: 28px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.stickerBtn:hover {
+  border-color: #3b82f6;
+  background: #eff6ff;
+  transform: scale(1.05);
+}
+
+.stickerBtn:active {
+  transform: scale(0.95);
+}
+
+/* ============================================================================
+   BACKGROUNDS
+   ============================================================================ */
+
+.bgGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.bgBtn {
+  position: relative;
+  aspect-ratio: 1;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  background-size: cover;
+  overflow: hidden;
+}
+
+.bgBtn:hover {
+  transform: scale(1.05);
+}
+
+.bgBtn:active {
+  transform: scale(0.98);
+}
+
+.activeBg {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+}
+
+.bgLabel {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  right: 4px;
+  padding: 2px 4px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 4px;
+  font-size: 10px;
+  text-align: center;
+  color: #374151;
+}
+
+/* ============================================================================
+   FILTERS
+   ============================================================================ */
+
+.filterScroll {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 4px 0 16px;
+  margin: 0 -20px;
+  padding-left: 20px;
+  padding-right: 20px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.filterScroll::-webkit-scrollbar {
+  display: none;
+}
+
+.filterBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.filterBtn:hover {
+  transform: scale(1.05);
+}
+
+.activeFilter {
+  border-color: #3b82f6;
+}
+
+.filterPreview {
+  width: 64px;
+  height: 64px;
+  border-radius: 10px;
+  background-size: cover;
+  background-position: center;
+}
+
+.filterBtn span {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.activeFilter span {
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+/* ============================================================================
+   SLIDERS
+   ============================================================================ */
+
+.sliders {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.sliders label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sliders label span {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.sliders input[type="range"] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #e5e7eb;
+  outline: none;
+}
+
+.sliders input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #3b82f6;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+}
+
+.sliders input[type="range"]::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #3b82f6;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+}
+
+/* ============================================================================
+   SHAPES
+   ============================================================================ */
+
+.shapeGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.shapeBtn {
+  padding: 10px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  background: #fff;
+  font-size: 13px;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.shapeBtn:hover {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.activeShape {
+  border-color: #3b82f6;
+  background: #eff6ff;
+  color: #3b82f6;
+}
+
+/* ============================================================================
+   TOGGLE
+   ============================================================================ */
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  font-size: 14px;
+  color: #374151;
+  cursor: pointer;
+}
+
+.toggle input[type="checkbox"] {
+  width: 48px;
+  height: 28px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: #e5e7eb;
+  border-radius: 14px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.toggle input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.toggle input[type="checkbox"]:checked {
+  background: #3b82f6;
+}
+
+.toggle input[type="checkbox"]:checked::after {
+  transform: translateX(20px);
+}
+
+/* ============================================================================
+   OPTIONS LIST
+   ============================================================================ */
+
+.optionsList {
+  display: flex;
+  flex-direction: column;
+}
+
+.optionsList button {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border: none;
+  background: transparent;
+  font-size: 16px;
+  color: #374151;
+  cursor: pointer;
+  border-radius: 12px;
+  transition: background 0.15s;
+}
+
+.optionsList button:hover {
+  background: #f3f4f6;
+}
+
+.optionsList button:active {
+  background: #e5e7eb;
+}
+
+.deleteOption {
+  color: #ef4444 !important;
+}
+
+.deleteOption:hover {
+  background: #fef2f2 !important;
+}
+
+/* ============================================================================
+   DESKTOP ENHANCEMENTS
+   ============================================================================ */
+
+@media (min-width: 768px) {
+  .toolbar {
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .toolBtn {
+    flex-direction: row;
+    gap: 8px;
+    padding: 12px 20px;
+    font-size: 14px;
+  }
+
+  .sheet {
+    max-width: 480px;
+    margin: 0 auto;
+    border-radius: 24px;
+    margin-bottom: 24px;
+  }
+
+  .sheetOverlay {
+    align-items: center;
+    justify-content: center;
+  }
+
+  .quickActions {
+    bottom: auto;
+    top: 80px;
+    right: 24px;
+    left: auto;
+    transform: none;
+    flex-direction: column;
+  }
+
+  .stickerGrid {
+    grid-template-columns: repeat(8, 1fr);
+  }
+
+  .bgGrid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}

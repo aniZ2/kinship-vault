@@ -1,0 +1,104 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+firebase-debug.log*
+firebase-debug.*.log*
+
+# Firebase cache
+.firebase/
+
+# Firebase config
+# Uncomment this if you'd like others to create their own Firebase project.
+# .firebaserc
+
+# Next.js
+.next/
+out/
+build/
+
+# Vite backup (can be deleted after confirming Next.js works)
+src-vite-backup/
+*.bak
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Directory for instrumented libs
+lib-cov
+
+# Coverage
+coverage
+.nyc_output
+
+# Grunt
+.grunt
+
+# Bower
+bower_components
+
+# node-waf
+.lock-wscript
+
+# Compiled binary addons
+build/Release
+
+# Dependency directories
+node_modules/
+
+# npm cache
+.npm
+
+# eslint cache
+.eslintcache
+
+# REPL history
+.node_repl_history
+
+# npm pack output
+*.tgz
+
+# Yarn
+.yarn-integrity
+
+# Security: Environment & secrets (NEVER commit)
+.env*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*-keypair.json
+*-wallet.json
+*-credentials.json
+serviceAccountKey*.json
+firebase-adminsdk*.json
+
+# dataconnect generated files
+.dataconnect
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Vercel
+.vercel
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+.env*.local
+node_modules/
+functions/node_modules/
