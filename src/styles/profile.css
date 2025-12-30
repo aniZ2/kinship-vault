@@ -177,3 +177,161 @@
   background: #ef4444; border-radius: 50%;
   box-shadow: inset 0 0 0 3px #fff, 0 6px 10px rgba(0,0,0,.18);
 }
+
+/* ============================================================================
+   DESKTOP OPTIMIZATIONS
+   ============================================================================ */
+
+/* Large desktop (1200px+) */
+@media (min-width: 1200px) {
+  .profile-wrap {
+    padding: 48px 32px;
+  }
+
+  .profile-paper {
+    padding: 40px 48px;
+  }
+
+  .profile-hero {
+    padding-bottom: 16px;
+  }
+
+  .hero-title {
+    font-size: 36px;
+  }
+
+  .hero-sub {
+    font-size: 16px;
+    margin-top: 6px;
+  }
+
+  .card {
+    padding: 28px;
+    margin-top: 24px;
+    border-radius: 20px;
+  }
+
+  .card-title h2 {
+    font-size: 24px;
+  }
+
+  .card-hint {
+    font-size: 14px;
+  }
+
+  .avatar-grid {
+    grid-template-columns: 320px 1fr;
+    gap: 32px;
+  }
+
+  .polaroid {
+    padding: 18px 18px 60px;
+  }
+
+  .polaroid .photo {
+    height: 300px;
+  }
+
+  .polaroid .caption {
+    font-size: 18px;
+  }
+
+  .avatar-polaroid .avatar-fallback {
+    font-size: 80px;
+  }
+
+  .avatar-actions {
+    gap: 16px;
+  }
+
+  .btn {
+    padding: 12px 18px;
+    font-size: 15px;
+  }
+
+  .field-row {
+    margin-top: 14px;
+    gap: 8px;
+  }
+
+  .label {
+    font-size: 14px;
+  }
+
+  .input {
+    padding: 12px 16px;
+    font-size: 15px;
+  }
+
+  .input.textarea {
+    min-height: 120px;
+  }
+
+  .grid.two {
+    gap: 20px;
+  }
+
+  .actions {
+    margin-top: 24px;
+    gap: 14px;
+  }
+
+  .footer-note {
+    margin-top: 28px;
+    font-size: 14px;
+  }
+}
+
+/* Medium desktop (900px - 1199px) */
+@media (min-width: 900px) and (max-width: 1199px) {
+  .profile-wrap {
+    padding: 40px 24px;
+  }
+
+  .profile-paper {
+    padding: 32px 36px;
+  }
+
+  .hero-title {
+    font-size: 32px;
+  }
+
+  .avatar-grid {
+    grid-template-columns: 300px 1fr;
+    gap: 24px;
+  }
+
+  .polaroid .photo {
+    height: 280px;
+  }
+
+  .card {
+    padding: 24px;
+  }
+}
+
+/* Tablet (720px - 899px) */
+@media (min-width: 720px) and (max-width: 899px) {
+  .avatar-grid {
+    grid-template-columns: 260px 1fr;
+    gap: 20px;
+  }
+}
+
+/* Mobile adjustments */
+@media (max-width: 719px) {
+  .profile-hero {
+    flex-direction: column;
+  }
+
+  .avatar-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .avatar-actions .btn {
+    flex: 1;
+    min-width: 100px;
+    text-align: center;
+  }
+}
