@@ -1,57 +1,99 @@
+/* src/components/FamilyStory/FamilyStory.module.css */
+
 .page {
   min-height: 100vh;
-  background: #FDF8F0;
+  background: linear-gradient(180deg, #FDF8F0 0%, #FAF5ED 50%, #FDF8F0 100%);
 }
+
+/* ============================================================================
+   HEADER
+   ============================================================================ */
 
 .header {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: rgba(255,255,255,0.95);
-  backdrop-filter: blur(8px);
-  border-bottom: 1px solid #e5e7eb;
-  padding: 16px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  padding: 1.25rem 1.5rem;
 }
 
 .headerTitles {
-  margin-bottom: 12px;
+  margin-bottom: 1rem;
 }
 
 .h1 {
   margin: 0;
-  font-size: 24px;
+  font-size: 1.75rem;
   font-weight: 800;
   color: #1f2937;
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.h1::before {
+  content: '📖';
+  font-size: 1.5rem;
 }
 
 .subtitle {
   color: #6b7280;
-  font-size: 14px;
-  margin-top: 4px;
+  font-size: 0.875rem;
+  margin-top: 0.375rem;
 }
+
+/* ============================================================================
+   FILTERS
+   ============================================================================ */
 
 .filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  align-items: center;
+  gap: 1rem;
+  align-items: flex-end;
 }
 
 .filterField {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 12px;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
   color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .filterField select,
 .filterField input {
-  padding: 8px 12px;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  font-size: 14px;
+  padding: 0.625rem 1rem;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 0.75rem;
+  font-size: 0.9375rem;
   background: #fff;
+  color: #1f2937;
+  transition: all 0.15s ease;
+  min-width: 140px;
+}
+
+.filterField select:hover,
+.filterField input:hover {
+  border-color: #d1d5db;
+}
+
+.filterField select:focus,
+.filterField input:focus {
+  outline: none;
+  border-color: #e11d48;
+  box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.1);
+}
+
+.filterField input::placeholder {
+  color: #9ca3af;
 }
 
 .chev {
@@ -60,51 +102,119 @@
   pointer-events: none;
 }
 
+/* ============================================================================
+   CTA BUTTONS
+   ============================================================================ */
+
 .previewCtas {
   display: flex;
-  gap: 8px;
+  gap: 0.625rem;
   margin-left: auto;
 }
 
-.ctaPrimary, .ctaGhost {
-  padding: 8px 14px;
-  border-radius: 10px;
+.ctaPrimary,
+.ctaGhost {
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.75rem;
   font-weight: 600;
   text-decoration: none;
-  font-size: 14px;
+  font-size: 0.9375rem;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
 }
 
 .ctaPrimary {
-  background: #e11d48;
+  background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
   color: #fff;
   border: none;
+  box-shadow: 0 4px 12px rgba(225, 29, 72, 0.25);
+}
+
+.ctaPrimary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(225, 29, 72, 0.35);
 }
 
 .ctaGhost {
   background: #fff;
   color: #374151;
-  border: 1px solid #e5e7eb;
+  border: 1.5px solid #e5e7eb;
 }
 
+.ctaGhost:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.ctaWithBadge {
+  position: relative;
+}
+
+.pendingBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  margin-left: 6px;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 10px;
+}
+
+/* ============================================================================
+   WALL / GRID
+   ============================================================================ */
+
 .wall {
-  padding: 16px;
+  padding: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .wall {
+    padding: 2rem;
+  }
 }
 
 .grid {
   display: grid;
-  gap: 18px;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  max-width: 1200px;
+  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  max-width: 1400px;
   margin: 0 auto;
 }
+
+@media (min-width: 1200px) {
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  }
+}
+
+/* ============================================================================
+   CARD
+   ============================================================================ */
 
 .card {
   position: relative;
   background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  border-radius: 1.25rem;
   overflow: hidden;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04), 0 2px 6px rgba(0, 0, 0, 0.02);
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
+  border-color: rgba(225, 29, 72, 0.1);
 }
 
 .cardLink {
@@ -114,93 +224,164 @@
 
 .preview {
   aspect-ratio: 4/3;
+  background: linear-gradient(135deg, #f8f8f8 0%, #f0f0f0 100%);
+  position: relative;
+  overflow: hidden;
 }
 
+.preview::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 60%, rgba(0, 0, 0, 0.02) 100%);
+  pointer-events: none;
+}
+
+/* ============================================================================
+   CARD META
+   ============================================================================ */
+
 .cardMeta {
-  padding: 12px;
+  padding: 1rem 1.25rem;
   border-top: 1px solid #f1f5f9;
+  background: linear-gradient(180deg, #fff 0%, #fafafa 100%);
 }
 
 .cardTitle {
   font-weight: 700;
+  font-size: 1.0625rem;
   color: #1f2937;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.4;
 }
 
 .titleInput {
   width: 100%;
   border: none;
   font-weight: 700;
+  font-size: 1.0625rem;
   color: #1f2937;
   background: transparent;
   padding: 0;
-  font-size: inherit;
+  line-height: 1.4;
+  transition: all 0.15s ease;
+}
+
+.titleInput::placeholder {
+  color: #9ca3af;
+  font-weight: 500;
 }
 
 .titleInput:focus {
   outline: none;
   background: #f9fafb;
-  padding: 4px 8px;
-  margin: -4px -8px;
-  border-radius: 6px;
+  padding: 0.375rem 0.625rem;
+  margin: -0.375rem -0.625rem;
+  border-radius: 0.5rem;
 }
 
 .cardSubrow {
   display: flex;
-  gap: 8px;
-  margin-top: 6px;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.625rem;
+  align-items: center;
 }
 
 .badge {
-  font-size: 11px;
-  padding: 2px 8px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 0.25rem 0.625rem;
   border-radius: 999px;
-  background: #f3f4f6;
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
   color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .badgeMuted {
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: #9ca3af;
 }
 
+/* ============================================================================
+   DELETE BUTTON
+   ============================================================================ */
+
 .deleteBtn {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 28px;
-  height: 28px;
+  top: 0.75rem;
+  right: 0.75rem;
+  width: 2rem;
+  height: 2rem;
   border-radius: 50%;
   border: none;
-  background: rgba(0,0,0,0.5);
+  background: rgba(0, 0, 0, 0.6);
   color: #fff;
-  font-size: 16px;
+  font-size: 1.125rem;
+  font-weight: 600;
   cursor: pointer;
   opacity: 0;
-  transition: opacity 0.15s;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
 }
 
 .card:hover .deleteBtn {
   opacity: 1;
 }
 
+.deleteBtn:hover {
+  background: #e11d48;
+  transform: scale(1.1);
+}
+
 .deleteBtn:disabled {
   cursor: wait;
+  opacity: 0.5;
 }
+
+/* ============================================================================
+   EMPTY STATE
+   ============================================================================ */
 
 .empty {
   text-align: center;
   color: #6b7280;
-  padding: 48px 16px;
+  padding: 4rem 1.5rem;
+  max-width: 400px;
+  margin: 0 auto;
+  background: linear-gradient(135deg, #fff 0%, #fafafa 100%);
+  border-radius: 1.5rem;
+  border: 2px dashed #e5e7eb;
 }
+
+.empty::before {
+  content: '📝';
+  display: block;
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+/* ============================================================================
+   SKELETON LOADING
+   ============================================================================ */
 
 .skeletonGrid {
   display: grid;
-  gap: 18px;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  max-width: 1200px;
+  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  max-width: 1400px;
   margin: 0 auto;
 }
 
@@ -208,11 +389,93 @@
   aspect-ratio: 4/3;
   background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
   background-size: 200% 100%;
-  animation: shimmer 1.2s infinite;
-  border-radius: 14px;
+  animation: shimmer 1.5s infinite;
+  border-radius: 1.25rem;
 }
 
 @keyframes shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+/* ============================================================================
+   RESPONSIVE
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  .header {
+    padding: 1rem;
+  }
+
+  .h1 {
+    font-size: 1.5rem;
+  }
+
+  .filters {
+    gap: 0.75rem;
+  }
+
+  .filterField select,
+  .filterField input {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    min-width: 100px;
+  }
+
+  .previewCtas {
+    width: 100%;
+    margin-left: 0;
+    margin-top: 0.5rem;
+  }
+
+  .ctaPrimary,
+  .ctaGhost {
+    flex: 1;
+    justify-content: center;
+    padding: 0.75rem 1rem;
+  }
+
+  .wall {
+    padding: 1rem;
+  }
+
+  .grid {
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  }
+
+  .card {
+    border-radius: 1rem;
+  }
+
+  .cardMeta {
+    padding: 0.875rem 1rem;
+  }
+
+  .deleteBtn {
+    opacity: 1;
+    width: 1.75rem;
+    height: 1.75rem;
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filterField {
+    width: 100%;
+  }
+
+  .filterField select,
+  .filterField input {
+    width: 100%;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
 }

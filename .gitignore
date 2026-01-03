@@ -102,3 +102,9 @@ Thumbs.db
 .env*.local
 node_modules/
 functions/node_modules/
+
+# Build output
+dist/
+
+# Git backup
+.git-backup/

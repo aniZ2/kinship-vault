@@ -5,9 +5,15 @@ const { onRequest } = require("firebase-functions/v2/https");
 const {
   onDocumentCreated,
   onDocumentWritten,
+  onDocumentUpdated,
 } = require("firebase-functions/v2/firestore");
 const admin = require("firebase-admin");
 const cors = require("cors");
+const { sendEmail } = require("./emails/resend");
+const {
+  generateEventOnboardingEmail,
+  generateEventOnboardingText,
+} = require("./emails/templates/eventOnboarding");
 
 try { admin.app(); } catch { admin.initializeApp(); }
 
@@ -270,7 +276,7 @@ exports.createFamily = onRequest({ region: "us-central1" }, (req, res) => {
     await famRef.set({
       name,
       ownerUid: auth.uid,
-      memberLimit: 10,
+      memberLimit: 5,
       memberCount: 0,
       ownerCount: 0,
       adminCount: 0,
@@ -308,7 +314,7 @@ exports.getFamilyMeta = onRequest({ region: "us-central1" }, (req, res) => {
       memberCount: Number(f.memberCount) || 0,
       ownerCount: Number(f.ownerCount) || 0,
       adminCount: Number(f.adminCount) || 0,
-      memberLimit: Number.isFinite(f.memberLimit) ? f.memberLimit : 10,
+      memberLimit: Number.isFinite(f.memberLimit) ? f.memberLimit : 5,
     });
   });
 });
@@ -331,7 +337,7 @@ exports.joinFamily = onRequest({ region: "us-central1" }, (req, res) => {
     if (!famSnap.exists) return sendError(res, "not-found", "Family not found");
     const fam = famSnap.data();
 
-    const memberLimit = Number.isFinite(fam.memberLimit) ? fam.memberLimit : 10;
+    const memberLimit = Number.isFinite(fam.memberLimit) ? fam.memberLimit : 5;
     const memberCount = Number(fam.memberCount) || 0;
     if (memberCount >= memberLimit) {
       return sendError(res, "failed-precondition", "This family is at capacity.");
@@ -529,3 +535,111 @@ exports.transferOwnership = onRequest({ region: "us-central1" }, (req, res) => {
     sendSuccess(res, { ok: true, newOwnerUid });
   });
 });
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Event Pack Onboarding Email Trigger
+// ───────────────────────────────────────────────────────────────────────────────
+
+exports.onSubscriptionChange = onDocumentUpdated(
+  {
+    document: "families/{familyId}",
+    region: "us-central1",
+  },
+  async (event) => {
+    const before = event.data?.before?.data() || {};
+    const after = event.data?.after?.data() || {};
+    const familyId = event.params.familyId;
+
+    // Check if subscription just changed to event_pack with active status
+    const beforeType = before.subscription?.type;
+    const afterType = after.subscription?.type;
+    const afterStatus = after.subscription?.status;
+
+    // Only trigger on new event_pack subscriptions
+    if (afterType !== "event_pack" || afterStatus !== "active") {
+      return;
+    }
+
+    // Don't re-trigger if already was event_pack
+    if (beforeType === "event_pack" && before.subscription?.status === "active") {
+      return;
+    }
+
+    console.log(`Event Pack activated for family ${familyId}, sending onboarding emails`);
+
+    const db = getFirestore();
+
+    try {
+      // Get all members of this family
+      const membershipsSnap = await db
+        .collection("memberships")
+        .where("familyId", "==", familyId)
+        .get();
+
+      if (membershipsSnap.empty) {
+        console.log("No members found for family", familyId);
+        return;
+      }
+
+      // Collect member UIDs
+      const memberUids = membershipsSnap.docs.map((d) => d.data().uid);
+
+      // Fetch user details for each member
+      const userPromises = memberUids.map((uid) =>
+        db.doc(`users/${uid}`).get()
+      );
+      const userSnaps = await Promise.all(userPromises);
+
+      // Build list of recipients with names and emails
+      const recipients = userSnaps
+        .filter((snap) => snap.exists)
+        .map((snap) => {
+          const data = snap.data();
+          return {
+            email: data.email,
+            name: data.displayName || data.email?.split("@")[0] || "there",
+          };
+        })
+        .filter((r) => r.email);
+
+      if (recipients.length === 0) {
+        console.log("No valid email addresses found for family", familyId);
+        return;
+      }
+
+      console.log(`Sending onboarding emails to ${recipients.length} members`);
+
+      // Send individual personalized emails
+      const emailPromises = recipients.map((recipient) =>
+        sendEmail({
+          to: recipient.email,
+          subject: "🗝️ Your Wedding Vault is Live! (Plus: Your Event Director's Guide)",
+          html: generateEventOnboardingEmail({
+            recipientName: recipient.name,
+            familyName: after.name || "Your Event",
+            familyId,
+          }),
+          text: generateEventOnboardingText({
+            recipientName: recipient.name,
+            familyName: after.name || "Your Event",
+            familyId,
+          }),
+        })
+      );
+
+      const results = await Promise.allSettled(emailPromises);
+
+      const successful = results.filter((r) => r.status === "fulfilled" && r.value?.success).length;
+      const failed = results.filter((r) => r.status === "rejected" || !r.value?.success).length;
+
+      console.log(`Onboarding emails sent: ${successful} success, ${failed} failed`);
+
+      // Mark family as having received onboarding
+      await db.doc(`families/${familyId}`).update({
+        onboardingEmailSentAt: FieldValue.serverTimestamp(),
+      });
+    } catch (err) {
+      console.error("Error sending onboarding emails:", err);
+    }
+  }
+);

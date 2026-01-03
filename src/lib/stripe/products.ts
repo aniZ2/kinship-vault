@@ -9,22 +9,20 @@
  * 3. Copy the price IDs and update this file
  */
 
-export type SubscriptionTier = 'free' | 'user_pro' | 'family_pro' | 'event';
+export type SubscriptionTier = 'free' | 'user_pro' | 'family_pro' | 'event_pack';
 
 // ============================================================================
 // PRICE IDS - Update these after creating products in Stripe Dashboard
 // ============================================================================
 
 export const STRIPE_PRICES = {
-  // User Pro - Allows joining 5 families instead of 2
-  USER_PRO_MONTHLY: process.env.NEXT_PUBLIC_STRIPE_USER_PRO_MONTHLY || 'price_user_pro_monthly',
+  // User Pro - $49/year - Allows joining 5 families instead of 2
   USER_PRO_ANNUAL: process.env.NEXT_PUBLIC_STRIPE_USER_PRO_ANNUAL || 'price_user_pro_annual',
 
-  // Family Pro - 25 members, unlimited storage
-  FAMILY_PRO_MONTHLY: process.env.NEXT_PUBLIC_STRIPE_FAMILY_PRO_MONTHLY || 'price_family_pro_monthly',
+  // Family Pro - $199/year - 5 members, 50GB storage, limited guest uploads
   FAMILY_PRO_ANNUAL: process.env.NEXT_PUBLIC_STRIPE_FAMILY_PRO_ANNUAL || 'price_family_pro_annual',
 
-  // Event Pack - $99/year one-time
+  // Event Pack - $299/year - 5 members, unlimited storage, unlimited guest uploads, view links, 5 free yearbooks
   EVENT_PACK: process.env.NEXT_PUBLIC_STRIPE_EVENT_PACK || 'price_event_pack',
 } as const;
 
@@ -34,17 +32,16 @@ export const STRIPE_PRICES = {
 
 export const PRICING = {
   userPro: {
-    monthly: 5,
-    annual: 50,
-    annualSavings: 10, // $60 - $50 = $10 saved (2 months free)
+    annual: 49,
   },
   familyPro: {
-    monthly: 10,
-    annual: 100,
-    annualSavings: 20, // $120 - $100 = $20 saved (2 months free)
+    annual: 199,
   },
   eventPack: {
-    annual: 99,
+    annual: 299,
+    // Future pricing phases:
+    // phase2: 399 (Month 6-18)
+    // phase3: 499 (Month 18+)
   },
 } as const;
 
@@ -59,21 +56,40 @@ export const LIMITS = {
     user_pro: 5,
   },
 
-  // Family member limits
+  // Family member limits (edit access) - same across all tiers
   membersPerFamily: {
     free: 5,
-    family_pro: 25,
+    family_pro: 5,
+    event_pack: 5,
   },
 
   // Storage limits (in bytes)
   storagePerFamily: {
     free: 1 * 1024 * 1024 * 1024, // 1GB
-    family_pro: Infinity, // Unlimited
+    family_pro: 50 * 1024 * 1024 * 1024, // 50GB
+    event_pack: Infinity, // Unlimited
   },
 
-  // Event limits
-  editorsPerEvent: 5,
-  guestsPerEvent: Infinity, // Unlimited
+  // Guest upload limits
+  guestUploads: {
+    free: 0, // Not available
+    family_pro: 100, // Limited
+    event_pack: Infinity, // Unlimited
+  },
+
+  // Guest view links
+  guestViewLinks: {
+    free: 0,
+    family_pro: 0,
+    event_pack: Infinity, // Unlimited
+  },
+
+  // Free yearbooks per year
+  freeYearbooks: {
+    free: 0,
+    family_pro: 0,
+    event_pack: 5,
+  },
 } as const;
 
 // ============================================================================
@@ -98,7 +114,7 @@ export interface UserSubscription {
 }
 
 export interface FamilySubscription {
-  type: 'free' | 'pro';
+  type: 'free' | 'family_pro' | 'event_pack';
   status?: SubscriptionStatus;
   priceId?: string;
   currentPeriodEnd?: Date;
@@ -119,16 +135,38 @@ export function getUserFamilyLimit(hasUserPro: boolean): number {
 
 /**
  * Get the member limit for a family based on its subscription
+ * Note: All tiers have the same 5-member limit for edit access
  */
-export function getFamilyMemberLimit(hasFamilyPro: boolean): number {
-  return hasFamilyPro ? LIMITS.membersPerFamily.family_pro : LIMITS.membersPerFamily.free;
+export function getFamilyMemberLimit(tier: 'free' | 'family_pro' | 'event_pack' = 'free'): number {
+  return LIMITS.membersPerFamily[tier] || LIMITS.membersPerFamily.free;
 }
 
 /**
  * Get the storage limit for a family based on its subscription
  */
-export function getFamilyStorageLimit(hasFamilyPro: boolean): number {
-  return hasFamilyPro ? LIMITS.storagePerFamily.family_pro : LIMITS.storagePerFamily.free;
+export function getFamilyStorageLimit(tier: 'free' | 'family_pro' | 'event_pack' = 'free'): number {
+  return LIMITS.storagePerFamily[tier] || LIMITS.storagePerFamily.free;
+}
+
+/**
+ * Check if guest uploads are enabled for a tier
+ */
+export function hasGuestUploads(tier: 'free' | 'family_pro' | 'event_pack' = 'free'): boolean {
+  return (LIMITS.guestUploads[tier] || 0) > 0;
+}
+
+/**
+ * Check if guest view links are enabled for a tier
+ */
+export function hasGuestViewLinks(tier: 'free' | 'family_pro' | 'event_pack' = 'free'): boolean {
+  return (LIMITS.guestViewLinks[tier] || 0) > 0;
+}
+
+/**
+ * Get free yearbooks count for a tier
+ */
+export function getFreeYearbooks(tier: 'free' | 'family_pro' | 'event_pack' = 'free'): number {
+  return LIMITS.freeYearbooks[tier] || 0;
 }
 
 /**

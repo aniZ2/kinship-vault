@@ -4,46 +4,61 @@
   position: relative;
   display: block;
   overflow: hidden;
-  background: #f4f2ee;
-  border-radius: 12px;
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,.04);
+  background: linear-gradient(135deg, #f8f6f3 0%, #f0ede8 100%);
+  border-radius: 1rem 1rem 0 0;
 }
 
 .sizeS { aspect-ratio: 4 / 3; }
 .sizeM { aspect-ratio: 4 / 3; }
 .sizeL { aspect-ratio: 3 / 2; }
 
+/* Cover Image */
 .coverImg {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
+  transition: transform 0.4s ease;
 }
 
+.previewRoot:hover .coverImg {
+  transform: scale(1.03);
+}
+
+/* Caption Overlay */
 .caption {
   position: absolute;
-  left: 8px;
-  right: 8px;
-  bottom: 8px;
-  padding: 6px 10px;
-  font-size: 12px;
-  line-height: 1.2;
-  border-radius: 8px;
-  background: rgba(255,255,255,.78);
-  color: #222;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.3;
+  border-radius: 0.625rem;
+  background: rgba(255, 255, 255, 0.9);
+  color: #1f2937;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  backdrop-filter: saturate(1.2) blur(4px);
-  box-shadow: 0 1px 2px rgba(0,0,0,.12);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
 }
 
+.previewRoot:hover .caption {
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+/* Grid Layouts */
 .grid {
   display: grid;
   width: 100%;
   height: 100%;
-  gap: 2px;
-  background: #eae6df;
+  gap: 3px;
+  background: #e5e2dc;
 }
 
 .grid img,
@@ -52,6 +67,12 @@
   height: 100%;
   object-fit: cover;
   display: block;
+  transition: transform 0.4s ease;
+}
+
+.previewRoot:hover .grid img,
+.previewRoot:hover .gridItem img {
+  transform: scale(1.05);
 }
 
 .gridItem {
@@ -59,6 +80,7 @@
   display: block;
   width: 100%;
   height: 100%;
+  overflow: hidden;
 }
 
 .cols2 {
@@ -76,43 +98,178 @@
   height: 100%;
 }
 
-/* Fallback */
+/* Fallback Empty State */
 .fallback {
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, #f7f5f1, #ece8e1);
+  background: linear-gradient(135deg, #f9f7f4 0%, #f0ede8 100%);
 }
 
 .fallbackInner {
   text-align: center;
-  color: #6a5f52;
-  max-width: 80%;
+  color: #78716c;
+  max-width: 85%;
+  padding: 1rem;
 }
 
 .fallbackIcon {
-  font-size: 28px;
+  font-size: 2.5rem;
   line-height: 1;
-  margin-bottom: 6px;
+  margin-bottom: 0.75rem;
+  opacity: 0.8;
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
 }
 
 .fallbackTitle {
-  font-size: 13px;
+  font-size: 0.9375rem;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: #57534e;
 }
 
-/* Skeleton */
+/* Sticker Row Preview */
+.stickerRow {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.previewSticker {
+  font-size: 2rem;
+  line-height: 1;
+  animation: float 3s ease-in-out infinite;
+}
+
+.previewSticker:nth-child(2) {
+  animation-delay: 0.3s;
+}
+
+.previewSticker:nth-child(3) {
+  animation-delay: 0.6s;
+}
+
+/* Text Preview */
+.previewText {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #57534e;
+  font-style: italic;
+  line-height: 1.4;
+  max-width: 200px;
+  margin: 0 auto;
+}
+
+/* Skeleton Loading */
 .skeleton {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, rgba(0,0,0,0.04) 25%, rgba(0,0,0,0.08) 37%, rgba(0,0,0,0.04) 63%);
-  background-size: 400% 100%;
-  animation: shimmer 1.2s infinite;
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
 }
 
 @keyframes shimmer {
-  0% { background-position: 100% 0; }
-  100% { background-position: 0 0; }
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ============================================================================
+   MOBILE RESPONSIVE
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  .caption {
+    left: 0.5rem;
+    right: 0.5rem;
+    bottom: 0.5rem;
+    padding: 0.375rem 0.625rem;
+    font-size: 0.75rem;
+    border-radius: 0.5rem;
+  }
+
+  .fallbackIcon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .fallbackTitle {
+    font-size: 0.8125rem;
+  }
+
+  .previewSticker {
+    font-size: 1.75rem;
+  }
+
+  .previewText {
+    font-size: 0.8125rem;
+    max-width: 160px;
+  }
+}
+
+@media (max-width: 480px) {
+  .previewRoot {
+    border-radius: 0.75rem 0.75rem 0 0;
+  }
+
+  .caption {
+    left: 0.375rem;
+    right: 0.375rem;
+    bottom: 0.375rem;
+    padding: 0.3125rem 0.5rem;
+    font-size: 0.6875rem;
+    border-radius: 0.375rem;
+  }
+
+  .grid {
+    gap: 2px;
+  }
+
+  .fallbackInner {
+    padding: 0.75rem;
+  }
+
+  .fallbackIcon {
+    font-size: 1.75rem;
+    margin-bottom: 0.375rem;
+  }
+
+  .fallbackTitle {
+    font-size: 0.75rem;
+  }
+
+  .stickerRow {
+    gap: 0.375rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .previewSticker {
+    font-size: 1.5rem;
+  }
+
+  .previewText {
+    font-size: 0.75rem;
+    max-width: 140px;
+  }
+}
+
+/* Touch optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .previewRoot:hover .coverImg,
+  .previewRoot:hover .grid img,
+  .previewRoot:hover .gridItem img {
+    transform: none;
+  }
+
+  .previewRoot:hover .caption {
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
 }

@@ -3,15 +3,17 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, serverTimestamp, increment } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { db } from '@/lib/firebase/client';
 import { uploadToCloudflare } from '@/lib/cfImages';
-import { EditorItem, EditorState, ScrapbookEditorProps, FrameStyle, PhotoFilter, TapePattern } from './types';
-import { BACKGROUNDS, FRAMES, STICKERS, FONTS, TEXT_COLORS, PHOTO_FILTERS, WASHI_TAPES, generateId } from './constants';
+import { EditorItem, EditorState, ScrapbookEditorProps, FrameStyle, PhotoFilter, TapePattern, PhotoShape, PhotoShadow, PhotoBorder, FontFamily, TextEffect, TextAlign, TextDecoration, StorageInfo } from './types';
+import { BACKGROUNDS, FRAMES, SHAPES, SHADOWS, BORDERS, STICKERS, FONTS, TEXT_COLORS, TEXT_EFFECTS, TEXT_DECORATIONS, TEXT_ALIGNS, FONT_SIZES, LETTER_SPACINGS, TEXT_BG_COLORS, PHOTO_FILTERS, WASHI_TAPES, generateId } from './constants';
+import { StorageIndicator } from '@/components/StorageIndicator';
+import { checkClientRateLimit, RATE_LIMITS } from '@/lib/rateLimit';
 import styles from './ScrapbookEditor.module.css';
 
-export default function ScrapbookEditor({ mode = 'edit', initialState }: ScrapbookEditorProps) {
+export default function ScrapbookEditor({ mode = 'edit', initialState, storageInfo }: ScrapbookEditorProps) {
   const router = useRouter();
   const params = useParams();
   const familyId = params?.familyId as string;
@@ -22,13 +24,22 @@ export default function ScrapbookEditor({ mode = 'edit', initialState }: Scrapbo
   // Refs
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const bgInputRef = useRef<HTMLInputElement>(null);
+
+  // Storage tracking - track bytes added during this editing session
+  const [sessionStorageAdded, setSessionStorageAdded] = useState(0);
+  const currentStorageUsed = (storageInfo?.usedBytes || 0) + sessionStorageAdded;
+  const storageLimit = storageInfo?.limitBytes || (1024 * 1024 * 1024); // Default 1GB
+  const isPro = storageInfo?.isPro || false;
 
   // State
   const [items, setItems] = useState<EditorItem[]>(initialState?.items || []);
   const [background, setBackground] = useState(initialState?.background || 'cream');
+  const [customBgUrl, setCustomBgUrl] = useState<string | null>(initialState?.customBgUrl || null);
+  const [customBgUploading, setCustomBgUploading] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [drawerTab, setDrawerTab] = useState<'photo' | 'text' | 'sticker' | 'tape' | 'frame' | 'background'>('photo');
+  const [drawerTab, setDrawerTab] = useState<'photo' | 'text' | 'sticker' | 'tape' | 'frame' | 'shape' | 'shadow' | 'border' | 'background'>('photo');
   const [saving, setSaving] = useState(false);
 
   // History for undo/redo
@@ -94,9 +105,29 @@ export default function ScrapbookEditor({ mode = 'edit', initialState }: Scrapbo
   const selectedItem = items.find(i => i.id === selectedId);
   const cropItem = items.find(i => i.id === cropItemId);
 
-  // Get background style
+  // Get background style with appropriate background-size for patterns
   const bgOption = BACKGROUNDS.find(b => b.id === background);
-  const canvasStyle = bgOption ? { background: bgOption.value } : { background: '#FDF8F0' };
+  const getBackgroundSize = (bgId: string) => {
+    // Patterns that need specific background sizes
+    if (bgId.startsWith('polka')) return '50px 50px';
+    if (bgId === 'dotgrid') return '20px 20px';
+    if (bgId === 'grid') return '20px 20px';
+    if (bgId === 'checkerboard' || bgId === 'checkerboard-pink') return '40px 40px';
+    if (bgId === 'lined') return '100% 28px';
+    // Gradients and solid colors don't need specific sizes
+    return 'cover';
+  };
+
+  // Handle custom background or preset background
+  const canvasStyle = background === 'custom' && customBgUrl
+    ? {
+        backgroundImage: `url(${customBgUrl})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }
+    : bgOption
+      ? { background: bgOption.value, backgroundSize: getBackgroundSize(bgOption.id) }
+      : { background: '#FDF8F0' };
 
   // ============================================================================
   // HISTORY (UNDO/REDO)
@@ -166,7 +197,14 @@ export default function ScrapbookEditor({ mode = 'edit', initialState }: Scrapbo
   }, []);
 
   const deleteItem = useCallback((id: string) => {
-    setItems(prev => prev.filter(item => item.id !== id));
+    setItems(prev => {
+      const itemToDelete = prev.find(item => item.id === id);
+      // Decrement storage if deleting an image with tracked size
+      if (itemToDelete?.type === 'image' && itemToDelete.sizeBytes && itemToDelete.sizeBytes > 0) {
+        setSessionStorageAdded(current => Math.max(0, current - itemToDelete.sizeBytes!));
+      }
+      return prev.filter(item => item.id !== id);
+    });
     setSelectedId(null);
   }, []);
 
@@ -209,11 +247,22 @@ export default function ScrapbookEditor({ mode = 'edit', initialState }: Scrapbo
   }, [items]);
 
   const sendToBack = useCallback((id: string) => {
-    const minZ = Math.min(...items.map(i => i.zIndex));
-    setItems(prev => prev.map(item =>
-      item.id === id ? { ...item, zIndex: minZ - 1 } : item
-    ));
-  }, [items]);
+    // Ensure minimum zIndex is 1 so items never go behind the canvas
+    setItems(prev => {
+      const otherItems = prev.filter(i => i.id !== id);
+      const minZ = otherItems.length > 0 ? Math.min(...otherItems.map(i => i.zIndex)) : 2;
+      const newZ = Math.max(1, minZ - 1);
+      // Shift other items up if needed to make room
+      if (newZ >= minZ) {
+        return prev.map(item =>
+          item.id === id ? { ...item, zIndex: 1 } : { ...item, zIndex: item.zIndex + 1 }
+        );
+      }
+      return prev.map(item =>
+        item.id === id ? { ...item, zIndex: newZ } : item
+      );
+    });
+  }, []);
 
   const scaleItem = useCallback((id: string, factor: number) => {
     const canvasRect = canvasRef.current?.getBoundingClientRect();
@@ -402,6 +451,29 @@ export default function ScrapbookEditor({ mode = 'edit', initialState }: Scrapbo
     const fileArray = Array.from(files);
     e.target.value = '';
 
+    // Check rate limit before upload
+    const rateLimitCheck = checkClientRateLimit(
+      'photo-upload',
+      RATE_LIMITS.photoUpload.maxRequests,
+      RATE_LIMITS.photoUpload.windowMs
+    );
+    if (!rateLimitCheck.allowed) {
+      const waitSeconds = Math.ceil(rateLimitCheck.resetIn / 1000);
+      alert(`Too many uploads. Please wait ${waitSeconds} seconds before uploading more photos.`);
+      return;
+    }
+
+    // Check storage limit before upload (skip for Pro users)
+    if (!isPro) {
+      const totalNewBytes = fileArray.reduce((sum, f) => sum + f.size, 0);
+      if (currentStorageUsed + totalNewBytes > storageLimit) {
+        const usedMB = Math.round(currentStorageUsed / (1024 * 1024));
+        const limitMB = Math.round(storageLimit / (1024 * 1024));
+        alert(`Storage limit reached (${usedMB}MB / ${limitMB}MB). Upgrade to Pro for unlimited storage.`);
+        return;
+      }
+    }
+
     const rect = canvasRef.current?.getBoundingClientRect();
     const size = Math.min(rect?.width || 200, rect?.height || 200) * 0.5;
 
@@ -421,6 +493,7 @@ export default function ScrapbookEditor({ mode = 'edit', initialState }: Scrapbo
         frame: 'none',
         caption: `Memory · ${dateStr}`,
         isUploading: true,
+        sizeBytes: file.size,
       });
 
       // Upload to Cloudflare
@@ -435,15 +508,63 @@ export default function ScrapbookEditor({ mode = 'edit', initialState }: Scrapbo
         if (res?.deliveryURL && res?.imageId) {
           URL.revokeObjectURL(localURL);
           updateItem(item.id, { src: res.deliveryURL, cfId: res.imageId, isUploading: false });
+          // Track storage added in this session
+          setSessionStorageAdded(prev => prev + file.size);
         } else {
-          updateItem(item.id, { isUploading: false });
+          updateItem(item.id, { isUploading: false, sizeBytes: 0 });
         }
       } catch {
-        updateItem(item.id, { isUploading: false });
+        updateItem(item.id, { isUploading: false, sizeBytes: 0 });
       }
     }
 
     setDrawerOpen(false);
+  };
+
+  // ============================================================================
+  // CUSTOM BACKGROUND UPLOAD
+  // ============================================================================
+
+  const handleCustomBgSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    // Check storage limit before upload (skip for Pro users)
+    if (!isPro && currentStorageUsed + file.size > storageLimit) {
+      const usedMB = Math.round(currentStorageUsed / (1024 * 1024));
+      const limitMB = Math.round(storageLimit / (1024 * 1024));
+      alert(`Storage limit reached (${usedMB}MB / ${limitMB}MB). Upgrade to Pro for unlimited storage.`);
+      return;
+    }
+
+    setCustomBgUploading(true);
+    const localURL = URL.createObjectURL(file);
+
+    // Set as custom background immediately for preview
+    setBackground('custom');
+    setCustomBgUrl(localURL);
+
+    // Upload to Cloudflare
+    try {
+      const auth = getAuth();
+      const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : undefined;
+
+      const res = await uploadToCloudflare(undefined, file, idToken, 'public', {
+        apiBaseURL: process.env.NEXT_PUBLIC_IMAGES_API_BASE,
+      });
+
+      if (res?.deliveryURL) {
+        URL.revokeObjectURL(localURL);
+        setCustomBgUrl(res.deliveryURL);
+        // Track storage added in this session
+        setSessionStorageAdded(prev => prev + file.size);
+      }
+    } catch (err) {
+      console.error('Custom background upload failed:', err);
+    } finally {
+      setCustomBgUploading(false);
+    }
   };
 
   // ============================================================================
@@ -463,6 +584,13 @@ export default function ScrapbookEditor({ mode = 'edit', initialState }: Scrapbo
       font: 'handwriting',
       fontSize: 24,
       color: '#1f2937',
+      textEffect: 'none',
+      textAlign: 'center',
+      textDecoration: 'none',
+      fontWeight: 'normal',
+      fontStyle: 'normal',
+      letterSpacing: 0,
+      bgColor: 'transparent',
     });
     setDrawerOpen(false);
   };
@@ -817,7 +945,7 @@ export default function ScrapbookEditor({ mode = 'edit', initialState }: Scrapbo
     setSaving(true);
 
     try {
-      const state: EditorState = { background, items };
+      const state: EditorState = { background, items, customBgUrl: customBgUrl || undefined };
       const pid = isNew ? generateId() : pageId;
 
       console.log('Saving page:', { familyId, pid, isNew, itemCount: items.length });
@@ -840,6 +968,17 @@ export default function ScrapbookEditor({ mode = 'edit', initialState }: Scrapbo
         });
       } else {
         await updateDoc(doc(db, `families/${familyId}/pages/${pid}`), data);
+      }
+
+      // Update storage tracking in family document if bytes were added
+      if (sessionStorageAdded !== 0) {
+        try {
+          await updateDoc(doc(db, `families/${familyId}`), {
+            storageUsedBytes: increment(sessionStorageAdded),
+          });
+        } catch (storageErr) {
+          console.warn('Failed to update storage tracking:', storageErr);
+        }
       }
 
       console.log('Save successful');
@@ -883,7 +1022,7 @@ export default function ScrapbookEditor({ mode = 'edit', initialState }: Scrapbo
         onTouchCancel={handleTouchEnd}
       >
         {item.type === 'image' && (
-          <div className={styles.imageWrapper}>
+          <div className={`${styles.imageWrapper} ${item.shape && item.shape !== 'rectangle' ? styles[`shape_${item.shape}`] : ''} ${item.shadow && item.shadow !== 'none' ? styles[`shadow_${item.shadow.replace('-', '_')}`] : ''} ${item.border && item.border !== 'none' ? styles[`border_${item.border.replace('-', '_')}`] : ''}`}>
             {item.isUploading && <div className={styles.uploadingOverlay}>Uploading...</div>}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -914,13 +1053,21 @@ export default function ScrapbookEditor({ mode = 'edit', initialState }: Scrapbo
 
         {item.type === 'text' && (
           <div
-            className={styles.textContent}
+            className={`${styles.textContent} ${item.textEffect && item.textEffect !== 'none' ? styles[`textEffect_${item.textEffect.replace('-', '_')}`] : ''} ${item.textDecoration && item.textDecoration !== 'none' ? styles[`textDecoration_${item.textDecoration}`] : ''} ${item.textAlign ? styles[`textAlign_${item.textAlign}`] : ''}`}
             contentEditable={!viewOnly}
             suppressContentEditableWarning
             style={{
               fontFamily: FONTS.find(f => f.id === item.font)?.family,
               fontSize: item.fontSize,
               color: item.color,
+              fontWeight: item.fontWeight || 'normal',
+              fontStyle: item.fontStyle || 'normal',
+              letterSpacing: item.letterSpacing ? `${item.letterSpacing}px` : undefined,
+              backgroundColor: item.bgColor && item.bgColor !== 'transparent' ? item.bgColor : undefined,
+              ...(item.textDecoration === 'highlight' ? {
+                background: `linear-gradient(to top, rgba(254, 240, 138, 0.7) 40%, transparent 40%)`,
+                padding: '2px 6px',
+              } : {}),
             }}
             onFocus={(e) => {
               // Select all text on focus if it's the default placeholder
@@ -1022,7 +1169,7 @@ export default function ScrapbookEditor({ mode = 'edit', initialState }: Scrapbo
       <header className={styles.header}>
         <div className={styles.headerRow}>
           <div className={styles.headerLeft}>
-            <button className={styles.menuBtn} onClick={() => setDrawerOpen(!drawerOpen)}>
+            <button className={`${styles.menuBtn} ${styles.toolBtn}`} onClick={() => setDrawerOpen(!drawerOpen)} data-tooltip="Add Items">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M3 12h18M3 6h18M3 18h18" />
               </svg>
@@ -1030,20 +1177,20 @@ export default function ScrapbookEditor({ mode = 'edit', initialState }: Scrapbo
             {!viewOnly && (
               <div className={styles.undoRedoBtns}>
                 <button
-                  className={styles.undoBtn}
+                  className={`${styles.undoBtn} ${styles.toolBtn}`}
                   onClick={undo}
                   disabled={!canUndo}
-                  title="Undo"
+                  data-tooltip="Undo"
                 >
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M3 7v6h6M3 13a9 9 0 1 0 2.5-6.3L3 9" />
                   </svg>
                 </button>
                 <button
-                  className={styles.redoBtn}
+                  className={`${styles.redoBtn} ${styles.toolBtn}`}
                   onClick={redo}
                   disabled={!canRedo}
-                  title="Redo"
+                  data-tooltip="Redo"
                 >
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M21 7v6h-6M21 13a9 9 0 1 1-2.5-6.3L21 9" />
@@ -1053,21 +1200,31 @@ export default function ScrapbookEditor({ mode = 'edit', initialState }: Scrapbo
             )}
           </div>
           <span className={styles.title}>{selectedItem ? (selectedItem.type === 'image' ? 'Edit Photo' : selectedItem.type === 'text' ? 'Edit Text' : selectedItem.type === 'tape' ? 'Edit Tape' : 'Edit Sticker') : 'Page Editor'}</span>
-          <button className={styles.saveBtn} onClick={handleSave} disabled={saving || viewOnly}>
-            {saving ? 'Saving...' : 'Done'}
-          </button>
+          <div className={styles.headerRight}>
+            {!viewOnly && storageInfo && (
+              <StorageIndicator
+                usedBytes={currentStorageUsed}
+                limitBytes={storageLimit}
+                isPro={isPro}
+                compact
+              />
+            )}
+            <button className={styles.saveBtn} onClick={handleSave} disabled={saving || viewOnly}>
+              {saving ? 'Saving...' : 'Done'}
+            </button>
+          </div>
         </div>
 
         {/* Editing Tools Row - shows when item selected */}
         {selectedItem && !viewOnly && (
           <div className={styles.toolsRow}>
             {/* Rotate buttons - for all items */}
-            <button className={styles.toolBtn} onClick={() => rotateItem(selectedItem.id, -90)} title="Rotate Left">
+            <button className={styles.toolBtn} onClick={() => rotateItem(selectedItem.id, -90)} data-tooltip="Rotate Left">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M2.5 2v6h6M2.66 15.57a10 10 0 1 0 .57-8.38" />
               </svg>
             </button>
-            <button className={styles.toolBtn} onClick={() => rotateItem(selectedItem.id, 90)} title="Rotate Right">
+            <button className={styles.toolBtn} onClick={() => rotateItem(selectedItem.id, 90)} data-tooltip="Rotate Right">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38" />
               </svg>
@@ -1076,12 +1233,12 @@ export default function ScrapbookEditor({ mode = 'edit', initialState }: Scrapbo
             {selectedItem.type !== 'tape' && (
               <>
                 <div className={styles.toolDivider} />
-                <button className={styles.toolBtn} onClick={() => flipItem(selectedItem.id, 'horizontal')} title="Flip H">
+                <button className={styles.toolBtn} onClick={() => flipItem(selectedItem.id, 'horizontal')} data-tooltip="Flip Horizontal">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M12 3v18M16 7l4 5-4 5M8 7l-4 5 4 5" />
                   </svg>
                 </button>
-                <button className={styles.toolBtn} onClick={() => flipItem(selectedItem.id, 'vertical')} title="Flip V">
+                <button className={styles.toolBtn} onClick={() => flipItem(selectedItem.id, 'vertical')} data-tooltip="Flip Vertical">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M3 12h18M7 8l5-4 5 4M7 16l5 4 5-4" />
                   </svg>
@@ -1091,7 +1248,7 @@ export default function ScrapbookEditor({ mode = 'edit', initialState }: Scrapbo
             {selectedItem.type === 'image' && (
               <>
                 <div className={styles.toolDivider} />
-                <button className={styles.toolBtn} onClick={() => startCrop(selectedItem.id)} title="Crop">
+                <button className={styles.toolBtn} onClick={() => startCrop(selectedItem.id)} data-tooltip="Crop">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M6 2v4H2M18 22v-4h4M2 6h16a2 2 0 0 1 2 2v12M22 18H6a2 2 0 0 1-2-2V4" />
                   </svg>
@@ -1099,7 +1256,7 @@ export default function ScrapbookEditor({ mode = 'edit', initialState }: Scrapbo
                 <button
                   className={`${styles.toolBtn} ${showFilterPicker ? styles.toolBtnActive : ''}`}
                   onClick={() => setShowFilterPicker(!showFilterPicker)}
-                  title="Filter"
+                  data-tooltip="Filter"
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <circle cx="12" cy="12" r="10" />
@@ -1113,13 +1270,13 @@ export default function ScrapbookEditor({ mode = 'edit', initialState }: Scrapbo
             {selectedItem.type !== 'tape' && (
               <>
                 <div className={styles.toolDivider} />
-                <button className={styles.toolBtn} onClick={() => scaleItem(selectedItem.id, 0.9)} title="Smaller">
+                <button className={styles.toolBtn} onClick={() => scaleItem(selectedItem.id, 0.9)} data-tooltip="Make Smaller">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <circle cx="11" cy="11" r="8" />
                     <path d="M21 21l-4.35-4.35M8 11h6" />
                   </svg>
                 </button>
-                <button className={styles.toolBtn} onClick={() => scaleItem(selectedItem.id, 1.1)} title="Larger">
+                <button className={styles.toolBtn} onClick={() => scaleItem(selectedItem.id, 1.1)} data-tooltip="Make Larger">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <circle cx="11" cy="11" r="8" />
                     <path d="M21 21l-4.35-4.35M11 8v6M8 11h6" />
@@ -1128,7 +1285,7 @@ export default function ScrapbookEditor({ mode = 'edit', initialState }: Scrapbo
                 <button
                   className={`${styles.toolBtn} ${aspectLock ? styles.toolBtnActive : ''}`}
                   onClick={() => setAspectLock(!aspectLock)}
-                  title={aspectLock ? "Unlock Ratio" : "Lock Ratio"}
+                  data-tooltip={aspectLock ? "Unlock Aspect Ratio" : "Lock Aspect Ratio"}
                 >
                   {aspectLock ? (
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1145,26 +1302,26 @@ export default function ScrapbookEditor({ mode = 'edit', initialState }: Scrapbo
               </>
             )}
             <div className={styles.toolDivider} />
-            <button className={styles.toolBtn} onClick={() => bringToFront(selectedItem.id)} title="Front">
+            <button className={styles.toolBtn} onClick={() => bringToFront(selectedItem.id)} data-tooltip="Bring to Front">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect x="8" y="8" width="12" height="12" rx="2" />
                 <path d="M4 16V6a2 2 0 0 1 2-2h10" />
               </svg>
             </button>
-            <button className={styles.toolBtn} onClick={() => sendToBack(selectedItem.id)} title="Back">
+            <button className={styles.toolBtn} onClick={() => sendToBack(selectedItem.id)} data-tooltip="Send to Back">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect x="4" y="4" width="12" height="12" rx="2" />
                 <path d="M20 8v10a2 2 0 0 1-2 2H8" />
               </svg>
             </button>
             <div className={styles.toolDivider} />
-            <button className={styles.toolBtn} onClick={() => duplicateItem(selectedItem.id)} title="Copy">
+            <button className={styles.toolBtn} onClick={() => duplicateItem(selectedItem.id)} data-tooltip="Duplicate">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect x="9" y="9" width="11" height="11" rx="2" />
                 <path d="M5 15V5a2 2 0 0 1 2-2h10" />
               </svg>
             </button>
-            <button className={`${styles.toolBtn} ${styles.deleteToolBtn}`} onClick={() => deleteItem(selectedItem.id)} title="Delete">
+            <button className={`${styles.toolBtn} ${styles.deleteToolBtn}`} onClick={() => deleteItem(selectedItem.id)} data-tooltip="Delete">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
               </svg>
@@ -1202,7 +1359,7 @@ export default function ScrapbookEditor({ mode = 'edit', initialState }: Scrapbo
         </div>
 
         <nav className={styles.drawerTabs}>
-          {(['photo', 'text', 'sticker', 'tape', 'frame', 'background'] as const).map(tab => (
+          {(['photo', 'text', 'sticker', 'tape', 'frame', 'shape', 'shadow', 'border', 'background'] as const).map(tab => (
             <button
               key={tab}
               className={`${styles.tabBtn} ${drawerTab === tab ? styles.activeTab : ''}`}
@@ -1213,6 +1370,9 @@ export default function ScrapbookEditor({ mode = 'edit', initialState }: Scrapbo
               {tab === 'sticker' && '😊'}
               {tab === 'tape' && '🎀'}
               {tab === 'frame' && '🖼️'}
+              {tab === 'shape' && '⬡'}
+              {tab === 'shadow' && '🌑'}
+              {tab === 'border' && '⬜'}
               {tab === 'background' && '🎨'}
               <span>{tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
             </button>
@@ -1248,6 +1408,21 @@ export default function ScrapbookEditor({ mode = 'edit', initialState }: Scrapbo
               </button>
               {selectedItem?.type === 'text' && (
                 <div className={styles.textOptions}>
+                  {/* Font Size */}
+                  <h4>Size</h4>
+                  <div className={styles.fontSizeGrid}>
+                    {FONT_SIZES.map(size => (
+                      <button
+                        key={size}
+                        className={`${styles.fontSizeBtn} ${selectedItem.fontSize === size ? styles.activeFontSize : ''}`}
+                        onClick={() => updateItem(selectedItem.id, { fontSize: size })}
+                      >
+                        {size}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Font Family */}
                   <h4>Font</h4>
                   <div className={styles.fontGrid}>
                     {FONTS.map(font => (
@@ -1255,12 +1430,88 @@ export default function ScrapbookEditor({ mode = 'edit', initialState }: Scrapbo
                         key={font.id}
                         className={`${styles.fontBtn} ${selectedItem.font === font.id ? styles.activeFont : ''}`}
                         style={{ fontFamily: font.family }}
-                        onClick={() => updateItem(selectedItem.id, { font: font.id as any })}
+                        onClick={() => updateItem(selectedItem.id, { font: font.id as FontFamily })}
                       >
                         {font.label}
                       </button>
                     ))}
                   </div>
+
+                  {/* Font Style (Bold/Italic) */}
+                  <h4>Style</h4>
+                  <div className={styles.textStyleRow}>
+                    <button
+                      className={`${styles.textStyleBtn} ${selectedItem.fontWeight === 'bold' ? styles.activeTextStyle : ''}`}
+                      onClick={() => updateItem(selectedItem.id, { fontWeight: selectedItem.fontWeight === 'bold' ? 'normal' : 'bold' })}
+                    >
+                      <strong>B</strong>
+                    </button>
+                    <button
+                      className={`${styles.textStyleBtn} ${selectedItem.fontStyle === 'italic' ? styles.activeTextStyle : ''}`}
+                      onClick={() => updateItem(selectedItem.id, { fontStyle: selectedItem.fontStyle === 'italic' ? 'normal' : 'italic' })}
+                    >
+                      <em>I</em>
+                    </button>
+                  </div>
+
+                  {/* Text Alignment */}
+                  <h4>Alignment</h4>
+                  <div className={styles.textAlignRow}>
+                    {TEXT_ALIGNS.map(align => (
+                      <button
+                        key={align.id}
+                        className={`${styles.textAlignBtn} ${(selectedItem.textAlign || 'center') === align.id ? styles.activeTextAlign : ''}`}
+                        onClick={() => updateItem(selectedItem.id, { textAlign: align.id as TextAlign })}
+                      >
+                        {align.icon}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Text Decoration */}
+                  <h4>Decoration</h4>
+                  <div className={styles.textDecorationRow}>
+                    {TEXT_DECORATIONS.map(dec => (
+                      <button
+                        key={dec.id}
+                        className={`${styles.textDecorationBtn} ${(selectedItem.textDecoration || 'none') === dec.id ? styles.activeTextDecoration : ''}`}
+                        onClick={() => updateItem(selectedItem.id, { textDecoration: dec.id as TextDecoration })}
+                      >
+                        <span>{dec.icon}</span>
+                        <span className={styles.decorationLabel}>{dec.label}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Text Effects */}
+                  <h4>Effects</h4>
+                  <div className={styles.textEffectGrid}>
+                    {TEXT_EFFECTS.map(effect => (
+                      <button
+                        key={effect.id}
+                        className={`${styles.textEffectBtn} ${(selectedItem.textEffect || 'none') === effect.id ? styles.activeTextEffect : ''}`}
+                        onClick={() => updateItem(selectedItem.id, { textEffect: effect.id as TextEffect })}
+                      >
+                        {effect.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Letter Spacing */}
+                  <h4>Letter Spacing</h4>
+                  <div className={styles.letterSpacingRow}>
+                    {LETTER_SPACINGS.map(spacing => (
+                      <button
+                        key={spacing.id}
+                        className={`${styles.letterSpacingBtn} ${(selectedItem.letterSpacing || 0) === spacing.value ? styles.activeLetterSpacing : ''}`}
+                        onClick={() => updateItem(selectedItem.id, { letterSpacing: spacing.value })}
+                      >
+                        {spacing.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Text Color */}
                   <h4>Color</h4>
                   <div className={styles.colorGrid}>
                     {TEXT_COLORS.map(color => (
@@ -1269,6 +1520,19 @@ export default function ScrapbookEditor({ mode = 'edit', initialState }: Scrapbo
                         className={`${styles.colorBtn} ${selectedItem.color === color ? styles.activeColor : ''}`}
                         style={{ background: color }}
                         onClick={() => updateItem(selectedItem.id, { color })}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Background Color */}
+                  <h4>Background</h4>
+                  <div className={styles.textBgGrid}>
+                    {TEXT_BG_COLORS.map(bgColor => (
+                      <button
+                        key={bgColor}
+                        className={`${styles.textBgBtn} ${(selectedItem.bgColor || 'transparent') === bgColor ? styles.activeTextBg : ''}`}
+                        style={{ background: bgColor === 'transparent' ? 'linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%), linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%)' : bgColor, backgroundSize: bgColor === 'transparent' ? '8px 8px' : 'auto', backgroundPosition: bgColor === 'transparent' ? '0 0, 4px 4px' : 'auto' }}
+                        onClick={() => updateItem(selectedItem.id, { bgColor })}
                       />
                     ))}
                   </div>
@@ -1346,9 +1610,112 @@ export default function ScrapbookEditor({ mode = 'edit', initialState }: Scrapbo
             </div>
           )}
 
+          {/* Shape Tab */}
+          {drawerTab === 'shape' && selectedItem?.type === 'image' && (
+            <div className={styles.tabPanel}>
+              <div className={styles.shapeGrid}>
+                {SHAPES.map(shape => (
+                  <button
+                    key={shape.id}
+                    className={`${styles.shapeBtn} ${(selectedItem.shape || 'rectangle') === shape.id ? styles.activeShape : ''}`}
+                    onClick={() => updateItem(selectedItem.id, { shape: shape.id as PhotoShape })}
+                  >
+                    <span className={styles.shapeIcon}>{shape.icon}</span>
+                    <span className={styles.shapeLabel}>{shape.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {drawerTab === 'shape' && (!selectedItem || selectedItem.type !== 'image') && (
+            <div className={styles.tabPanel}>
+              <p className={styles.hint}>Select an image to change its shape</p>
+            </div>
+          )}
+
+          {/* Shadow Tab */}
+          {drawerTab === 'shadow' && selectedItem?.type === 'image' && (
+            <div className={styles.tabPanel}>
+              <div className={styles.shadowGrid}>
+                {SHADOWS.map(shadow => (
+                  <button
+                    key={shadow.id}
+                    className={`${styles.shadowBtn} ${(selectedItem.shadow || 'none') === shadow.id ? styles.activeShadow : ''} ${styles[`shadowPreview_${shadow.id}`] || ''}`}
+                    onClick={() => updateItem(selectedItem.id, { shadow: shadow.id as PhotoShadow })}
+                  >
+                    <span className={styles.shadowLabel}>{shadow.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {drawerTab === 'shadow' && (!selectedItem || selectedItem.type !== 'image') && (
+            <div className={styles.tabPanel}>
+              <p className={styles.hint}>Select an image to add a shadow</p>
+            </div>
+          )}
+
+          {/* Border Tab */}
+          {drawerTab === 'border' && selectedItem?.type === 'image' && (
+            <div className={styles.tabPanel}>
+              <div className={styles.borderGrid}>
+                {BORDERS.map(border => (
+                  <button
+                    key={border.id}
+                    className={`${styles.borderBtn} ${(selectedItem.border || 'none') === border.id ? styles.activeBorder : ''} ${styles[`borderPreview_${border.id.replace('-', '_')}`] || ''}`}
+                    onClick={() => updateItem(selectedItem.id, { border: border.id as PhotoBorder })}
+                  >
+                    <span className={styles.borderLabel}>{border.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {drawerTab === 'border' && (!selectedItem || selectedItem.type !== 'image') && (
+            <div className={styles.tabPanel}>
+              <p className={styles.hint}>Select an image to add a border</p>
+            </div>
+          )}
+
           {/* Background Tab */}
           {drawerTab === 'background' && (
             <div className={styles.tabPanel}>
+              {/* Custom Background Upload */}
+              <div className={styles.customBgSection}>
+                <h4>Custom Background</h4>
+                <button
+                  className={`${styles.customBgBtn} ${background === 'custom' && customBgUrl ? styles.activeBg : ''}`}
+                  onClick={() => bgInputRef.current?.click()}
+                  disabled={customBgUploading}
+                  style={
+                    customBgUrl
+                      ? { backgroundImage: `url(${customBgUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                      : undefined
+                  }
+                >
+                  {customBgUploading ? (
+                    <span>Uploading...</span>
+                  ) : customBgUrl ? (
+                    <span className={styles.customBgOverlay}>Change Image</span>
+                  ) : (
+                    <>
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+                      </svg>
+                      <span>Upload Image</span>
+                    </>
+                  )}
+                </button>
+                <input
+                  ref={bgInputRef}
+                  type="file"
+                  accept="image/*"
+                  className={styles.hiddenInput}
+                  onChange={handleCustomBgSelect}
+                />
+              </div>
+
+              <h4>Presets</h4>
               <div className={styles.bgGrid}>
                 {BACKGROUNDS.map(bg => (
                   <button

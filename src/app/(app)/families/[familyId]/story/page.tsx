@@ -33,6 +33,7 @@ export default function FamilyStoryPage() {
   const [period, setPeriod] = useState("All");
   const [q, setQ] = useState("");
   const [me, setMe] = useState<string | null>(null);
+  const [pendingUploads, setPendingUploads] = useState(0);
 
   // Get current user on client only
   useEffect(() => {
@@ -49,7 +50,12 @@ export default function FamilyStoryPage() {
     const unsub = onSnapshot(famRef, (snap) => {
       setFamilyExists(snap.exists());
       if (!snap.exists()) { try { localStorage.removeItem("kv:lastFamilyId"); } catch {} router.replace("/families"); }
-      else { try { localStorage.setItem("kv:lastFamilyId", familyId); } catch {} }
+      else {
+        try { localStorage.setItem("kv:lastFamilyId", familyId); } catch {}
+        // Get pending upload count
+        const data = snap.data();
+        setPendingUploads(data?.pendingUploadCount || 0);
+      }
     }, () => { setFamilyExists(false); router.replace("/families"); });
     return () => unsub();
   }, [familyId, router]);
@@ -145,6 +151,19 @@ export default function FamilyStoryPage() {
           <div className={styles.previewCtas}>
             <Link className={styles.ctaPrimary} href={`/families/${familyId}/pages/new`}>+ New Page</Link>
             <Link className={styles.ctaGhost} href={`/families/${familyId}/yearbook`}>Print Yearbook</Link>
+            <Link className={styles.ctaGhost} href={`/families/${familyId}/qr`}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 4 }}>
+                <rect x="3" y="3" width="7" height="7" />
+                <rect x="14" y="3" width="7" height="7" />
+                <rect x="3" y="14" width="7" height="7" />
+                <rect x="14" y="14" width="7" height="7" />
+              </svg>
+              QR Upload
+            </Link>
+            <Link className={`${styles.ctaGhost} ${pendingUploads > 0 ? styles.ctaWithBadge : ''}`} href={`/families/${familyId}/moderate`}>
+              Moderation
+              {pendingUploads > 0 && <span className={styles.pendingBadge}>{pendingUploads}</span>}
+            </Link>
           </div>
         </div>
       </header>

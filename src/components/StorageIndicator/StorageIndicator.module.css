@@ -1,0 +1,176 @@
+/* src/components/StorageIndicator/StorageIndicator.module.css */
+
+/* Full Version */
+.container {
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.proBadge {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.bar {
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease, background-color 0.3s ease;
+  background: #10b981;
+}
+
+.info {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.used {
+  color: #6b7280;
+}
+
+.limit {
+  color: #9ca3af;
+}
+
+.unlimited {
+  color: #d97706;
+  font-weight: 500;
+}
+
+.warningMessage {
+  margin-top: 8px;
+  font-size: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #fef3c7;
+  color: #92400e;
+}
+
+/* Status variations */
+.normal .fill {
+  background: #10b981;
+}
+
+.warning .fill {
+  background: #f59e0b;
+}
+
+.warning .container,
+.warning {
+  border-color: #fcd34d;
+}
+
+.full .fill {
+  background: #ef4444;
+}
+
+.full .container,
+.full {
+  border-color: #fca5a5;
+}
+
+.full .warningMessage {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.pro .fill {
+  background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+  width: 100% !important;
+  opacity: 0.3;
+}
+
+/* Compact Version */
+.compact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+}
+
+.compactBar {
+  width: 48px;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.compactFill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+  background: #10b981;
+}
+
+.compactText {
+  font-size: 11px;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.compact.warning .compactFill {
+  background: #f59e0b;
+}
+
+.compact.warning .compactText {
+  color: #92400e;
+}
+
+.compact.full .compactFill {
+  background: #ef4444;
+}
+
+.compact.full .compactText {
+  color: #991b1b;
+}
+
+.compact.pro .compactFill {
+  background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+}
+
+.compact.pro .compactText {
+  color: #d97706;
+}
+
+/* Mobile responsive */
+@media (max-width: 640px) {
+  .container {
+    padding: 12px;
+  }
+
+  .info {
+    font-size: 12px;
+  }
+}
