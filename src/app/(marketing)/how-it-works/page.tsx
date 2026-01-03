@@ -354,7 +354,7 @@ export default function HowItWorksPage() {
                 <div className="hiw-price">$199<span>/year</span></div>
                 <p className="hiw-price-desc">For ongoing scrapbooking</p>
                 <ul>
-                  <li>50 GB storage</li>
+                  <li>Generous storage</li>
                   <li>5 members</li>
                   <li>Limited guest uploads</li>
                 </ul>

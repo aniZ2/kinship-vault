@@ -16,6 +16,18 @@ Kinship Vault enables families to collaboratively create digital memory books wi
 
 ---
 
+## Design Philosophy
+
+Kinship Vault is built on three principles:
+
+1. **Privacy by default** - Nothing is public unless explicitly shared. Families control who sees their memories.
+
+2. **Intention over volume** - Limits encourage curation, not hoarding. 5 editors, moderated uploads, storage tiers.
+
+3. **Permanence over feeds** - Memories are artifacts, not content. Pages lock after editing, yearbooks are printed, archives persist forever.
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -213,7 +225,7 @@ For events like weddings and reunions, the Event Pack enables:
 - Limited editors (5) prevents resale
 - View-only guests have no resale value
 - All uploads moderated before approval
-- Rate limiting: 10 uploads/minute per guest
+- Rate limiting: 5/min burst, 20/hour sustained (per IP + familyId)
 
 ### 4. Yearbook Printing
 
@@ -244,7 +256,7 @@ For events like weddings and reunions, the Event Pack enables:
 |------|-------|----------|
 | **Free** | $0 | Testing, small families |
 | **User Pro** | $49/year | Join multiple families (5 instead of 2) |
-| **Family Pro** | $199/year | Ongoing family scrapbooking (50GB storage) |
+| **Family Pro** | $199/year | Ongoing family scrapbooking (generous storage) |
 | **Event Pack** | $299/year* | Weddings, reunions, big events (unlimited storage) |
 
 *Launch pricing. Will increase to $499/year. Early customers grandfathered.
@@ -255,7 +267,7 @@ For events like weddings and reunions, the Event Pack enables:
 |---------|:----:|:--------:|:----------:|:----------:|
 | Families you can join | 2 | 5 | - | - |
 | Members (edit access) | 5 | 5 | 5 | 5 |
-| Storage per family | 1GB | 1GB | 50GB | **Unlimited** |
+| Storage per family | 1GB | 1GB | Generous | **Unlimited** |
 | Guest uploads | - | - | Limited | **Unlimited** |
 | Guest view links | - | - | - | **Unlimited** |
 | Free yearbooks/year | - | - | - | **5** |
@@ -372,7 +384,7 @@ viewTokens/{token}/
     canView: true
     canEdit: false
     canInvite: false
-    canDownload: true
+    canDownload: true      # Future: toggle per family
 }
 
 users/{uid}/
@@ -513,8 +525,8 @@ RESEND_API_KEY=
 - Storage quota checks
 
 ### Rate Limiting
-- Guest uploads: 20/hour per IP, 5/minute burst limit
-- Photo uploads: 10/minute per user
+- Guest uploads: 5/min burst, 20/hour sustained (per IP + familyId)
+- Authenticated photo uploads: 10/minute per user
 
 ### Data Protection
 - Pages auto-lock after 7 days
@@ -590,7 +602,7 @@ npm run lint     # Run ESLint
 3. **Session Storage Tracking** - Tracks bytes added during editing session
 4. **Active Family Sync** - LocalStorage + custom events + context
 5. **Touch Gestures** - Pinch zoom and multi-touch rotation on mobile
-6. **Guest Upload Rate Limiting** - 5 uploads/minute per IP for guest uploads
+6. **Guest Upload Rate Limiting** - 5/min burst, 20/hour sustained (per IP + familyId)
 7. **View Token System** - UUID-based read-only access for guests
 8. **R2 Storage** - Cloudflare R2 for object storage (not Cloudflare Images)
 9. **Storage Tracking** - Real-time counter increments/decrements on upload/delete

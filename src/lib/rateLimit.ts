@@ -63,13 +63,21 @@ export function resetClientRateLimit(key: string): void {
 // ============================================================================
 
 export const RATE_LIMITS = {
-  // Photo uploads: max 10 per minute
+  // Photo uploads (authenticated users): max 10 per minute
   photoUpload: {
     maxRequests: 10,
     windowMs: 60 * 1000, // 1 minute
   },
-  // Guest uploads: max 20 per hour
-  guestUpload: {
+
+  // Guest uploads: two-tier rate limiting
+  // Burst: 5 uploads/minute (prevents rapid-fire abuse)
+  // Sustained: 20 uploads/hour (prevents grinding)
+  // Enforced per IP + familyId
+  guestUploadBurst: {
+    maxRequests: 5,
+    windowMs: 60 * 1000, // 1 minute
+  },
+  guestUploadSustained: {
     maxRequests: 20,
     windowMs: 60 * 60 * 1000, // 1 hour
   },

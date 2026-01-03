@@ -12,31 +12,48 @@ export async function POST(request: NextRequest) {
     // Get client identifier for rate limiting
     const clientId = getClientIdentifier(request);
 
-    // Check rate limit
-    const rateLimit = checkServerRateLimit(
-      clientId,
-      "guest-upload",
-      RATE_LIMITS.guestUpload.maxRequests,
-      RATE_LIMITS.guestUpload.windowMs
-    );
-
-    if (!rateLimit.allowed) {
-      return rateLimitResponse(rateLimit.resetIn);
-    }
-
-    // Parse form data
+    // Parse form data first to get familyId for rate limit key
     const formData = await request.formData();
-    const file = formData.get("file") as File | null;
     const familyId = formData.get("familyId") as string | null;
-    const guestName = (formData.get("guestName") as string | null)?.trim() || "Anonymous";
-
-    // Validate inputs
-    if (!file) {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 });
-    }
 
     if (!familyId) {
       return NextResponse.json({ error: "No family ID provided" }, { status: 400 });
+    }
+
+    // Rate limit key: IP + familyId (prevents abuse across families)
+    const rateLimitKey = `guest-upload:${familyId}`;
+
+    // Check burst limit (5/minute) - prevents rapid-fire uploads
+    const burstLimit = checkServerRateLimit(
+      clientId,
+      `${rateLimitKey}:burst`,
+      RATE_LIMITS.guestUploadBurst.maxRequests,
+      RATE_LIMITS.guestUploadBurst.windowMs
+    );
+
+    if (!burstLimit.allowed) {
+      return rateLimitResponse(burstLimit.resetIn);
+    }
+
+    // Check sustained limit (20/hour) - prevents grinding
+    const sustainedLimit = checkServerRateLimit(
+      clientId,
+      `${rateLimitKey}:sustained`,
+      RATE_LIMITS.guestUploadSustained.maxRequests,
+      RATE_LIMITS.guestUploadSustained.windowMs
+    );
+
+    if (!sustainedLimit.allowed) {
+      return rateLimitResponse(sustainedLimit.resetIn);
+    }
+
+    // Continue with form data (already parsed above)
+    const file = formData.get("file") as File | null;
+    const guestName = (formData.get("guestName") as string | null)?.trim() || "Anonymous";
+
+    // Validate file
+    if (!file) {
+      return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
     // Validate file size
@@ -118,7 +135,7 @@ export async function POST(request: NextRequest) {
       },
       {
         status: 200,
-        headers: rateLimit.headers,
+        headers: sustainedLimit.headers, // Use sustained limit headers for user visibility
       }
     );
   } catch (error) {
