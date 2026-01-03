@@ -47,6 +47,9 @@ export function LandingClient() {
           </div>
 
           <nav className="nav">
+            <Link href="/how-it-works" className="nav-link">
+              How it works
+            </Link>
             {authState !== "loading" && (
               signedIn ? (
                 <button className="btn" onClick={handleCTA}>
@@ -187,6 +190,9 @@ export function LandingClient() {
         <div className="wrap footer-inner">
           <div>© {new Date().getFullYear()} Kinship Vault</div>
           <div className="footer-links">
+            <Link href="/how-it-works">
+              How it works
+            </Link>
             <a href="#" onClick={(e) => e.preventDefault()}>
               Privacy
             </a>
