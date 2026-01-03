@@ -54,7 +54,7 @@ service cloud.firestore {
     function getFamily(familyId) {
       return get(/databases/$(database)/documents/families/$(familyId));
     }
-    
+
     // Check storage limits for family
     function isWithinStorageLimit(familyId) {
       let fam = getFamily(familyId).data;
@@ -62,6 +62,66 @@ service cloud.firestore {
       let hasPro = fam.subscription != null && fam.subscription.type == 'pro';
       let limit = hasPro ? 999999999999 : 1073741824; // 1GB for free, unlimited for pro
       return storageUsed < limit;
+    }
+
+    // Check if family has active edit access
+    // For Event Pack: checks if within edit window
+    // For other tiers: checks if subscription is active or free tier
+    function hasEditAccess(familyId) {
+      let fam = getFamily(familyId).data;
+      let sub = fam.subscription;
+
+      // Free tier always has edit access
+      if (sub == null || sub.type == 'free') {
+        return true;
+      }
+
+      // Family Pro: check subscription status
+      if (sub.type == 'family_pro') {
+        return sub.status == 'active' || sub.status == 'trialing';
+      }
+
+      // Event Pack: check edit window
+      if (sub.type == 'event_pack') {
+        // Must have active subscription
+        if (sub.status != 'active' && sub.status != 'trialing') {
+          return false;
+        }
+        // Check edit window end timestamp
+        if (sub.editWindowEnd != null) {
+          return request.time < sub.editWindowEnd;
+        }
+        // Fallback to currentPeriodEnd
+        if (sub.currentPeriodEnd != null) {
+          return request.time < sub.currentPeriodEnd;
+        }
+        return false;
+      }
+
+      return true;
+    }
+
+    // Check if family is in archived (view-only) mode
+    // Only applies to Event Pack after edit window expires
+    function isArchived(familyId) {
+      let fam = getFamily(familyId).data;
+      let sub = fam.subscription;
+
+      if (sub == null || sub.type != 'event_pack') {
+        return false;
+      }
+
+      // Explicitly marked as archived
+      if (sub.isArchived == true) {
+        return true;
+      }
+
+      // Edit window expired
+      if (sub.editWindowEnd != null && request.time >= sub.editWindowEnd) {
+        return true;
+      }
+
+      return false;
     }
     
     // =========================================================================
@@ -115,28 +175,32 @@ service cloud.firestore {
       // -----------------------------------------------------------------------
       // FAMILY PAGES (Scrapbook Pages)
       // -----------------------------------------------------------------------
-      
+
       match /pages/{pageId} {
-        // Members can read pages
+        // Members can read pages (even if archived)
         allow read: if isSignedIn() && isMember(familyId);
-        
-        // Members can create pages if within storage limit
-        allow create: if isSignedIn() && 
-                         isMember(familyId) && 
+
+        // Members can create pages if within storage limit AND has edit access
+        // Event Pack: blocked if edit window expired
+        allow create: if isSignedIn() &&
+                         isMember(familyId) &&
                          isWithinStorageLimit(familyId) &&
+                         hasEditAccess(familyId) &&
                          request.resource.data.createdBy == userId() &&
                          request.resource.data.familyId == familyId;
-        
+
         // Owner/Admin can edit any page, or creator can edit their own
-        allow update: if isSignedIn() && 
-                         isMember(familyId) && 
+        // Event Pack: blocked if edit window expired (archived)
+        allow update: if isSignedIn() &&
+                         isMember(familyId) &&
+                         hasEditAccess(familyId) &&
                          (isOwnerOrAdmin(familyId) || resource.data.createdBy == userId()) &&
                          // Cannot change creator or familyId
                          request.resource.data.createdBy == resource.data.createdBy &&
                          request.resource.data.familyId == resource.data.familyId;
-        
-        // Owner/Admin can delete pages
-        allow delete: if isSignedIn() && isOwnerOrAdmin(familyId);
+
+        // Owner/Admin can delete pages (only if not archived)
+        allow delete: if isSignedIn() && isOwnerOrAdmin(familyId) && hasEditAccess(familyId);
       }
 
       // -----------------------------------------------------------------------
@@ -144,17 +208,19 @@ service cloud.firestore {
       // -----------------------------------------------------------------------
 
       match /pendingUploads/{uploadId} {
-        // Owners and admins can read pending uploads
+        // Owners and admins can read pending uploads (even if archived)
         allow read: if isSignedIn() && isOwnerOrAdmin(familyId);
 
         // Only server can create pending uploads (via guest-upload API)
         allow create: if false;
 
         // Owners and admins can update status (approve/reject)
-        allow update: if isSignedIn() && isOwnerOrAdmin(familyId);
+        // Event Pack: blocked if edit window expired
+        allow update: if isSignedIn() && isOwnerOrAdmin(familyId) && hasEditAccess(familyId);
 
         // Owners and admins can delete rejected uploads
-        allow delete: if isSignedIn() && isOwnerOrAdmin(familyId);
+        // Event Pack: blocked if edit window expired
+        allow delete: if isSignedIn() && isOwnerOrAdmin(familyId) && hasEditAccess(familyId);
       }
 
       // -----------------------------------------------------------------------

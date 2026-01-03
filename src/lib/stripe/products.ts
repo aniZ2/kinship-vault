@@ -46,6 +46,21 @@ export const PRICING = {
 } as const;
 
 // ============================================================================
+// EVENT PACK LIFECYCLE
+// ============================================================================
+
+export const EVENT_PACK_LIFECYCLE = {
+  // Year 1: Full 365 days of editing from creation
+  INITIAL_EDIT_DAYS: 365,
+
+  // Renewals: 90 days of editing per renewal
+  RENEWAL_EDIT_DAYS: 90,
+
+  // Grace period before guest view tokens are revoked (days after expiry)
+  GUEST_ACCESS_GRACE_DAYS: 7,
+} as const;
+
+// ============================================================================
 // LIMITS BY TIER
 // ============================================================================
 
@@ -120,6 +135,13 @@ export interface FamilySubscription {
   currentPeriodEnd?: Date;
   stripeSubscriptionId?: string;
   storageUsedBytes: number;
+
+  // Event Pack lifecycle fields
+  createdAt?: Date;              // When the subscription was first created
+  editWindowStart?: Date;        // When current edit window started
+  editWindowEnd?: Date;          // When current edit window ends
+  renewalCount?: number;         // Number of times renewed (0 = first year)
+  isArchived?: boolean;          // True if expired and not renewed
 }
 
 // ============================================================================
@@ -212,4 +234,112 @@ export function isNearStorageLimit(used: number, limit: number): boolean {
 export function isAtStorageLimit(used: number, limit: number): boolean {
   if (limit === Infinity) return false;
   return used >= limit;
+}
+
+// ============================================================================
+// EVENT PACK LIFECYCLE HELPERS
+// ============================================================================
+
+/**
+ * Check if an Event Pack has active edit access
+ * - Year 1: Full 365 days from creation
+ * - Renewals: 90 days from renewal
+ */
+export function hasEventPackEditAccess(subscription: FamilySubscription): boolean {
+  if (subscription.type !== 'event_pack') return true; // Non-event packs always have edit access if active
+  if (!isSubscriptionActive(subscription.status)) return false;
+  if (subscription.isArchived) return false;
+
+  const now = new Date();
+  const editWindowEnd = subscription.editWindowEnd;
+
+  if (!editWindowEnd) {
+    // Fallback: if no edit window set, check currentPeriodEnd
+    return subscription.currentPeriodEnd ? now < subscription.currentPeriodEnd : false;
+  }
+
+  return now < editWindowEnd;
+}
+
+/**
+ * Check if an Event Pack is in archived (view-only) state
+ * Organizer retains view-only access forever after expiry
+ */
+export function isEventPackArchived(subscription: FamilySubscription): boolean {
+  if (subscription.type !== 'event_pack') return false;
+
+  // Explicitly archived
+  if (subscription.isArchived) return true;
+
+  // Edit window expired but not renewed
+  const now = new Date();
+  const editWindowEnd = subscription.editWindowEnd;
+
+  if (editWindowEnd && now >= editWindowEnd) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Check if guests should still have view access
+ * Guests lose access after expiry + grace period
+ */
+export function hasGuestViewAccess(subscription: FamilySubscription): boolean {
+  if (subscription.type !== 'event_pack') return false;
+  if (isSubscriptionActive(subscription.status)) return true;
+
+  // Check grace period
+  const editWindowEnd = subscription.editWindowEnd;
+  if (!editWindowEnd) return false;
+
+  const gracePeriodEnd = new Date(editWindowEnd);
+  gracePeriodEnd.setDate(gracePeriodEnd.getDate() + EVENT_PACK_LIFECYCLE.GUEST_ACCESS_GRACE_DAYS);
+
+  return new Date() < gracePeriodEnd;
+}
+
+/**
+ * Calculate the edit window end date for a new Event Pack subscription
+ */
+export function calculateEditWindowEnd(startDate: Date, isRenewal: boolean): Date {
+  const days = isRenewal
+    ? EVENT_PACK_LIFECYCLE.RENEWAL_EDIT_DAYS
+    : EVENT_PACK_LIFECYCLE.INITIAL_EDIT_DAYS;
+
+  const endDate = new Date(startDate);
+  endDate.setDate(endDate.getDate() + days);
+  return endDate;
+}
+
+/**
+ * Get days remaining in the edit window
+ */
+export function getEditWindowDaysRemaining(subscription: FamilySubscription): number {
+  if (subscription.type !== 'event_pack') return Infinity;
+
+  const editWindowEnd = subscription.editWindowEnd;
+  if (!editWindowEnd) return 0;
+
+  const now = new Date();
+  const diffMs = editWindowEnd.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+  return Math.max(0, diffDays);
+}
+
+/**
+ * Get a human-readable status for the Event Pack
+ */
+export function getEventPackStatus(subscription: FamilySubscription): 'active' | 'expiring_soon' | 'archived' | 'inactive' {
+  if (subscription.type !== 'event_pack') return 'inactive';
+  if (!isSubscriptionActive(subscription.status)) return 'inactive';
+
+  if (isEventPackArchived(subscription)) return 'archived';
+
+  const daysRemaining = getEditWindowDaysRemaining(subscription);
+  if (daysRemaining <= 30) return 'expiring_soon';
+
+  return 'active';
 }

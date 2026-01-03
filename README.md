@@ -268,6 +268,32 @@ Customers can switch between Family Pro <-> Event Pack at renewal:
 - **Downgrade:** Save $100/year
 - Common pattern: Event Pack for wedding -> Family Pro for steady use -> Event Pack again for baby shower
 
+### Event Pack Lifecycle
+
+**Year 1 (Initial Event):**
+- Active editing: 365 days from creation
+- Unlimited guest uploads via QR code
+- Unlimited storage
+- 5 editors (full access)
+- Unlimited guests (upload only, view after approval)
+
+**Year 2+ (Renewals):**
+- Renew for $299 to unlock 90 days of editing
+- Add photos from this year's recurring event
+- Update and re-order yearbook
+- Locks again after 90 days
+
+**After Expiration:**
+- Organizer retains view-only access (free forever)
+- Guests lose access (view tokens revoked after 7-day grace period)
+- Can order reprints anytime
+- Must renew ($299 for 90 days) to add/edit content
+
+**Common Use Cases:**
+- One-time events (weddings): Use Year 1, archive after
+- Recurring events (birthdays): Renew annually for 90-day windows
+- Transition to Family Pro: Switch to ongoing subscription after event
+
 ---
 
 ## Family Roles & Permissions
@@ -299,7 +325,17 @@ families/{familyId}/
 ├── createdAt: timestamp
 ├── storageUsedBytes: number
 ├── pendingUploadCount: number
-├── subscription: { type, status, ... }
+├── subscription: {
+│   type: 'free' | 'family_pro' | 'event_pack'
+│   status: 'active' | 'past_due' | 'canceled' | ...
+│   currentPeriodEnd: timestamp
+│   stripeSubscriptionId: string
+│   # Event Pack lifecycle fields:
+│   editWindowStart?: timestamp   # When current edit window started
+│   editWindowEnd?: timestamp     # When current edit window ends
+│   renewalCount?: number         # 0 = first year
+│   isArchived?: boolean          # True if expired/not renewed
+│}
 ├── guestUploadSettings: {
 │   enabled: boolean
 │   requireName: boolean
