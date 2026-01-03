@@ -4,9 +4,17 @@ A private, invite-only family scrapbook platform for preserving and sharing memo
 
 **Version:** 2.0.0
 
+---
+
 ## Overview
 
 Kinship Vault enables families to collaboratively create digital memory books with a vintage scrapbook aesthetic. Features include rich editing capabilities, yearbook printing, guest photo uploads via QR codes, and flexible subscription tiers.
+
+**Key Products:**
+- **Family Scrapbooks** - Ongoing, collaborative family memory keeping
+- **Event Pack** - One-time occasions like weddings, reunions, and birthdays
+
+---
 
 ## Tech Stack
 
@@ -16,10 +24,13 @@ Kinship Vault enables families to collaboratively create digital memory books wi
 | Styling | Tailwind CSS 4, CSS Modules |
 | Database | Firebase Firestore |
 | Auth | Firebase Auth (Email magic link + Google OAuth) |
-| Storage | Cloudflare R2 (object storage, not Cloudflare Images) |
+| Storage | Cloudflare R2 (object storage) |
 | Payments | Stripe (Subscriptions + Webhooks) |
 | Functions | Firebase Cloud Functions (Node.js 20) |
+| Email | Resend (transactional emails) |
 | Hosting | Firebase Hosting |
+
+---
 
 ## Quick Start
 
@@ -40,26 +51,68 @@ npm run build
 firebase deploy
 ```
 
+---
+
 ## Project Structure
 
 ```
 kinship-vault/
 ├── src/
-│   ├── app/                    # Next.js App Router
-│   │   ├── (app)/              # Protected routes (requires auth)
-│   │   ├── (auth)/             # Authentication routes
-│   │   ├── (marketing)/        # Public landing pages
-│   │   ├── api/                # API routes
-│   │   ├── upload/             # Public guest upload
-│   │   └── view/               # Guest view-only access
-│   ├── components/             # React components
-│   ├── context/                # React context providers
-│   ├── lib/                    # Utilities & services
-│   └── styles/                 # Global CSS
-├── functions/                  # Firebase Cloud Functions
-├── cf-worker/                  # Cloudflare Worker (R2 images)
-├── firebase.json               # Firebase configuration
-└── firestore.rules             # Security rules
+│   ├── app/                          # Next.js App Router
+│   │   ├── (app)/                    # Protected routes (requires auth)
+│   │   │   ├── families/
+│   │   │   │   ├── [familyId]/
+│   │   │   │   │   ├── story/        # Main scrapbook feed
+│   │   │   │   │   ├── pages/        # Create/view/edit pages
+│   │   │   │   │   ├── qr/           # QR code generation
+│   │   │   │   │   ├── moderate/     # Moderation dashboard
+│   │   │   │   │   ├── yearbook/     # Yearbook export
+│   │   │   │   │   └── print/        # Print preview
+│   │   │   │   └── page.tsx          # Family gate (create/join)
+│   │   │   ├── profile/              # User profile
+│   │   │   ├── settings/             # Billing & settings
+│   │   │   └── layout.tsx            # Auth-protected layout
+│   │   ├── (auth)/                   # Authentication routes
+│   │   │   └── signin/               # Sign in page
+│   │   ├── (marketing)/              # Public landing pages
+│   │   │   └── page.tsx              # Landing page
+│   │   ├── api/                      # API routes
+│   │   │   ├── guest-upload/         # Guest photo upload
+│   │   │   ├── delete-image/         # Delete from R2
+│   │   │   └── stripe/               # Checkout, portal, webhooks
+│   │   ├── upload/[familyId]/        # Public guest upload page
+│   │   └── view/[token]/             # Guest view-only access
+│   ├── components/
+│   │   ├── ScrapbookEditor/          # Canvas-based page editor
+│   │   ├── FamilyStory/              # Page card previews
+│   │   ├── StorageIndicator/         # Storage usage gauge
+│   │   ├── Canvas/                   # Reusable canvas component
+│   │   ├── NavBar.tsx                # Main navigation
+│   │   └── FamilySwitcher.tsx        # Family dropdown
+│   ├── context/
+│   │   └── AuthContext.tsx           # Auth state provider
+│   ├── lib/
+│   │   ├── firebase/                 # Firebase client & admin
+│   │   ├── stripe/                   # Stripe products & client
+│   │   ├── cfImages.ts               # Cloudflare R2 operations
+│   │   ├── rateLimit.ts              # Client & server rate limiting
+│   │   ├── activeFamily.ts           # Active family state
+│   │   └── utils.ts                  # Date, money, helpers
+│   └── styles/                       # Global CSS files
+│       ├── landing.css
+│       ├── familygate.css
+│       ├── profile.css
+│       └── billing.css
+├── functions/                        # Firebase Cloud Functions
+│   ├── index.js                      # Function definitions
+│   └── emails/                       # Resend email templates
+│       ├── resend.js                 # Email client
+│       └── templates/
+│           └── eventOnboarding.js    # Event Pack welcome email
+├── cf-worker/                        # Cloudflare Worker (R2 images)
+├── firebase.json                     # Firebase configuration
+├── firestore.rules                   # Security rules
+└── PRODUCT_SPEC.md                   # Product specification
 ```
 
 ---
@@ -85,6 +138,7 @@ kinship-vault/
 | `/families/[familyId]/pages/[pageId]` | View scrapbook page |
 | `/families/[familyId]/pages/[pageId]/edit` | Edit scrapbook page |
 | `/families/[familyId]/yearbook` | Print-ready yearbook preview |
+| `/families/[familyId]/print` | Print preview |
 | `/families/[familyId]/qr` | Generate QR code for guest uploads |
 | `/families/[familyId]/moderate` | Moderation dashboard for guest uploads |
 | `/profile` | User profile & avatar |
@@ -109,10 +163,10 @@ kinship-vault/
 Full-featured canvas editor (`src/components/ScrapbookEditor/`) with:
 
 - **Content Types:** Photos, text, stickers, washi tape
-- **Photo Features:** Frames, shapes, shadows, borders, filters, cropping
-- **Text Features:** 12 fonts, colors, effects, decorations, alignment
+- **Photo Features:** Frames, shapes (heart, circle, star, hexagon), shadows, borders, filters, cropping
+- **Text Features:** 12 fonts, colors, effects (neon, retro, emboss), decorations, alignment
 - **Transformations:** Drag, resize, rotate, flip
-- **Backgrounds:** Solid colors, textures, custom images
+- **Backgrounds:** Solid colors, textures, custom image uploads
 - **History:** Undo/redo support
 - **Touch Support:** Pinch zoom, multi-touch rotation
 
@@ -126,29 +180,40 @@ Full-featured canvas editor (`src/components/ScrapbookEditor/`) with:
 
 ### 3. Guest Upload System (Event Pack)
 
+For events like weddings and reunions, the Event Pack enables:
+
 **Three-tier access model:**
 
 1. **Invited Members (5 max)**
    - Full edit + view access
    - Can create pages, upload photos, invite others
-   - Example: Bride, Groom, both moms, maid of honor
 
-2. **Guest Uploaders (Unlimited - Event Pack only)**
+2. **Guest Uploaders (Unlimited)**
    - Scan QR code at events
    - Upload photos without login
    - Photos enter moderation queue
    - No edit access
 
-3. **Guest Viewers (Unlimited - Event Pack only)**
-   - Receive read-only view link after upload
+3. **Guest Viewers (Unlimited)**
+   - Receive read-only view link after upload approval
    - Can view scrapbook anytime
    - Cannot edit, invite, or upload more
-   - Example: 150 wedding guests view final album
+
+**How it works:**
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│   1. QR CODE    │────▶│   2. MODERATE   │────▶│   3. SHARE      │
+│                 │     │                 │     │                 │
+│  Print & display│     │  Approve the    │     │  Guests get     │
+│  at your venue  │     │  best shots     │     │  view-only link │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+```
 
 **Anti-abuse design:**
 - Limited editors (5) prevents resale
 - View-only guests have no resale value
 - All uploads moderated before approval
+- Rate limiting: 10 uploads/minute per guest
 
 ### 4. Yearbook Printing
 
@@ -165,20 +230,24 @@ Full-featured canvas editor (`src/components/ScrapbookEditor/`) with:
 - Storage indicator in editor
 - Real-time counter increments/decrements on upload/delete
 
-### 6. Subscriptions (Stripe)
+### 6. Email Notifications
+
+- Event Pack onboarding emails via Resend
+- Automatic welcome email when subscription activates
+- Includes QR code links, moderation queue, and tips
+
+---
+
+## Subscriptions (Stripe)
 
 | Tier | Price | Best For |
 |------|-------|----------|
 | **Free** | $0 | Testing, small families |
-| **User Pro** | $49/year | Join multiple families |
-| **Family Pro** | $199/year | Ongoing family scrapbooking |
-| **Event Pack** | $299/year* | Weddings, reunions, big events |
+| **User Pro** | $49/year | Join multiple families (5 instead of 2) |
+| **Family Pro** | $199/year | Ongoing family scrapbooking (50GB storage) |
+| **Event Pack** | $299/year* | Weddings, reunions, big events (unlimited storage) |
 
 *Launch pricing. Will increase to $499/year. Early customers grandfathered.
-
----
-
-## Subscription Model
 
 ### Feature Comparison
 
@@ -191,43 +260,6 @@ Full-featured canvas editor (`src/components/ScrapbookEditor/`) with:
 | Guest view links | - | - | - | **Unlimited** |
 | Free yearbooks/year | - | - | - | **5** |
 | Priority support | - | - | - | Yes |
-
-### Access Model (Event Pack)
-
-**Three-tier access system prevents abuse while enabling unlimited guest uploads:**
-
-1. **Invited Members (5 max)** - Full edit + view access
-   - Can create pages, upload photos, moderate uploads
-   - Example: Bride, Groom, both moms, maid of honor
-
-2. **Guest Uploaders (Unlimited)** - Upload only, no account needed
-   - Scan QR code at event
-   - Upload photos without login
-   - Photos enter moderation queue
-   - No edit access
-
-3. **Guest Viewers (Unlimited)** - Read-only access via link
-   - Receive view-only URL after upload
-   - Can view scrapbook anytime
-   - Cannot edit, invite, or upload more
-
----
-
-## Pricing Strategy
-
-### Launch Pricing (Current)
-- **Event Pack:** $299/year
-- **Family Pro:** $199/year
-- **User Pro:** $49/year
-
-### Future Pricing Increases
-
-Event Pack pricing will increase based on demand:
-- **Phase 1 (First 100 customers):** $299/year (current)
-- **Phase 2 (Month 6-18):** $399/year
-- **Phase 3 (Month 18+):** $499/year
-
-**Grandfather Clause:** Early customers lock in their signup price forever as long as they maintain active subscription.
 
 ### Tier Switching
 
@@ -257,66 +289,6 @@ Customers can switch between Family Pro <-> Event Pack at renewal:
 *Via view token only (Event Pack)
 **Event Pack only, uploads go to moderation queue
 
-**Note:** All tiers limited to 5 members with edit access. Event Pack adds unlimited guest uploaders (view-only).
-
----
-
-## Components
-
-### ScrapbookEditor
-**Location:** `src/components/ScrapbookEditor/`
-
-The core editing component with canvas-based layout, touch gestures, and real-time Firebase sync.
-
-**Files:**
-- `ScrapbookEditor.tsx` - Main component (1500+ lines)
-- `types.ts` - TypeScript interfaces
-- `constants.ts` - Backgrounds, frames, stickers, fonts
-- `ScrapbookEditor.module.css` - Styles
-
-### NavBar
-**Location:** `src/components/NavBar.tsx`
-
-Main navigation with family switcher, mobile menu, and user dropdown.
-
-### FamilyStory
-**Location:** `src/components/FamilyStory/`
-
-Page card previews and story feed display.
-
-### StorageIndicator
-**Location:** `src/components/StorageIndicator/`
-
-Visual storage usage gauge with tier-aware limits.
-
----
-
-## Libraries & Utilities
-
-### Firebase (`src/lib/firebase/`)
-
-| File | Purpose |
-|------|---------|
-| `client.ts` | Client-side Firebase initialization |
-| `admin.ts` | Server-side Firebase Admin SDK |
-| `functions.ts` | Typed Cloud Function wrappers |
-
-### Stripe (`src/lib/stripe/`)
-
-| File | Purpose |
-|------|---------|
-| `products.ts` | Pricing, limits, subscription types |
-| `client.ts` | Stripe client operations |
-
-### Other Utilities
-
-| File | Purpose |
-|------|---------|
-| `cfImages.ts` | Cloudflare R2 image operations |
-| `utils.ts` | Date formatting, money, initials |
-| `activeFamily.ts` | Active family state management |
-| `rateLimit.ts` | Client & server rate limiting |
-
 ---
 
 ## Database Schema (Firestore)
@@ -338,7 +310,7 @@ families/{familyId}/
 │   maxUploadsPerGuest: number
 │}
 ├── pages/{pageId}/
-│   ├── title, createdBy, createdAt
+│   ├── title, createdBy, createdAt, order
 │   ├── state: { items[], background }
 │   └── locked, unlockExpiresAt
 ├── pendingUploads/{uploadId}/
@@ -349,20 +321,23 @@ families/{familyId}/
 │   ├── status: "pending" | "approved" | "rejected"
 │   ├── sizeBytes: number
 │   ├── createdAt: timestamp
+│   ├── viewToken?: string (after approval)
 │   └── clientIp?: string
-├── viewTokens/{token}/
-│   ├── token: string
-│   ├── guestName: string
-│   ├── guestEmail?: string
-│   ├── createdAt: timestamp
-│   └── permissions: {
-│       canView: true
-│       canEdit: false
-│       canInvite: false
-│       canDownload: true
-│   }
 └── members/{userId}/
     └── role: "owner" | "admin" | "member"
+
+viewTokens/{token}/
+├── token: string
+├── familyId: string
+├── guestName: string
+├── guestEmail?: string
+├── createdAt: timestamp
+└── permissions: {
+    canView: true
+    canEdit: false
+    canInvite: false
+    canDownload: true
+}
 
 users/{uid}/
 ├── email, displayName, bio, location
@@ -391,9 +366,65 @@ memberships/{docId}/
 | `setAdminRoles` | HTTPS | Manage admin roles |
 | `transferOwnership` | HTTPS | Transfer family ownership |
 | `membershipCounter` | Firestore Trigger | Update member counts |
-| `fsOnPageCreate` | Firestore Trigger | Handle new page creation |
-| `fsOnQuestionCreate` | Firestore Trigger | Handle questions |
-| `fsOnResponseCreate` | Firestore Trigger | Handle responses |
+| `onSubscriptionChange` | Firestore Trigger | Send Event Pack onboarding emails |
+
+---
+
+## Components
+
+### ScrapbookEditor
+**Location:** `src/components/ScrapbookEditor/`
+
+The core editing component with canvas-based layout, touch gestures, and real-time Firebase sync.
+
+**Files:**
+- `ScrapbookEditor.tsx` - Main component (1500+ lines)
+- `types.ts` - TypeScript interfaces
+- `constants.ts` - Backgrounds, frames, stickers, fonts, shapes, effects
+- `ScrapbookEditor.module.css` - Styles (2300+ lines)
+
+### StorageIndicator
+**Location:** `src/components/StorageIndicator/`
+
+Visual storage usage gauge with tier-aware limits and warnings.
+
+### FamilyStory
+**Location:** `src/components/FamilyStory/`
+
+Page card previews and story feed display.
+
+### NavBar
+**Location:** `src/components/NavBar.tsx`
+
+Main navigation with family switcher, mobile menu, and user dropdown.
+
+---
+
+## Libraries & Utilities
+
+### Firebase (`src/lib/firebase/`)
+
+| File | Purpose |
+|------|---------|
+| `client.ts` | Client-side Firebase initialization |
+| `admin.ts` | Server-side Firebase Admin SDK |
+| `functions.ts` | Typed Cloud Function wrappers |
+
+### Stripe (`src/lib/stripe/`)
+
+| File | Purpose |
+|------|---------|
+| `products.ts` | Pricing, limits, storage helpers, subscription types |
+| `client.ts` | Stripe client operations |
+
+### Other Utilities
+
+| File | Purpose |
+|------|---------|
+| `cfImages.ts` | Cloudflare R2 image operations |
+| `utils.ts` | Date formatting, money, initials |
+| `activeFamily.ts` | Active family state management |
+| `rateLimit.ts` | Client & server rate limiting |
 
 ---
 
@@ -425,6 +456,9 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
 NEXT_PUBLIC_STRIPE_USER_PRO_ANNUAL=
 NEXT_PUBLIC_STRIPE_FAMILY_PRO_ANNUAL=
 NEXT_PUBLIC_STRIPE_EVENT_PACK=
+
+# Resend (Email)
+RESEND_API_KEY=
 ```
 
 ---
@@ -469,11 +503,6 @@ NEXT_PUBLIC_STRIPE_EVENT_PACK=
 - Revenue: $299
 - Cost: $105
 - **Gross profit: $194 (65% margin)**
-
-**At $499/year pricing (future):**
-- Revenue: $499
-- Cost: $105
-- **Gross profit: $394 (79% margin)**
 
 ### Why Unlimited Storage Works
 
