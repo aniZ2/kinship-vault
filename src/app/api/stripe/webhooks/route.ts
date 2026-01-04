@@ -3,6 +3,27 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { adminDb } from '@/lib/firebase/admin';
 import { isSubscriptionActive } from '@/lib/stripe/products';
+import { FieldValue } from 'firebase-admin/firestore';
+
+// Types for Stripe data we use (SDK types changed in newer versions)
+interface StripeSubscriptionData {
+  id: string;
+  status: string;
+  current_period_end: number;
+  cancel_at_period_end: boolean;
+  items?: {
+    data?: Array<{
+      price?: {
+        id?: string;
+      };
+    }>;
+  };
+}
+
+interface StripeInvoiceData {
+  id: string;
+  subscription?: string | { id: string };
+}
 
 // Lazy initialization to avoid build-time errors
 let stripe: Stripe | null = null;
@@ -14,7 +35,7 @@ function getStripe(): Stripe {
       throw new Error('STRIPE_SECRET_KEY is not configured');
     }
     stripe = new Stripe(key, {
-      apiVersion: '2024-12-18.acacia',
+      apiVersion: '2025-12-15.clover',
     });
   }
   return stripe;
@@ -26,6 +47,33 @@ function getWebhookSecret(): string {
     throw new Error('STRIPE_WEBHOOK_SECRET is not configured');
   }
   return secret;
+}
+
+/**
+ * Check if a Stripe event has already been processed (idempotency)
+ * Returns true if already processed, false if new
+ */
+async function isEventProcessed(eventId: string): Promise<boolean> {
+  const eventRef = adminDb.collection('stripeEvents').doc(eventId);
+  const eventDoc = await eventRef.get();
+
+  if (eventDoc.exists) {
+    console.log(`Stripe event ${eventId} already processed, skipping`);
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Mark a Stripe event as processed
+ */
+async function markEventProcessed(eventId: string, eventType: string): Promise<void> {
+  await adminDb.collection('stripeEvents').doc(eventId).set({
+    eventId,
+    eventType,
+    processedAt: FieldValue.serverTimestamp(),
+  });
 }
 
 /**
@@ -55,26 +103,34 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // Check idempotency - skip if already processed
+    if (await isEventProcessed(event.id)) {
+      return NextResponse.json({ received: true, skipped: true });
+    }
+
     switch (event.type) {
       case 'checkout.session.completed':
         await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
         break;
 
       case 'customer.subscription.updated':
-        await handleSubscriptionUpdated(event.data.object as Stripe.Subscription);
+        await handleSubscriptionUpdated(event.data.object as unknown as StripeSubscriptionData);
         break;
 
       case 'customer.subscription.deleted':
-        await handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
+        await handleSubscriptionDeleted(event.data.object as unknown as StripeSubscriptionData);
         break;
 
       case 'invoice.payment_failed':
-        await handlePaymentFailed(event.data.object as Stripe.Invoice);
+        await handlePaymentFailed(event.data.object as unknown as StripeInvoiceData);
         break;
 
       default:
         console.log(`Unhandled event type: ${event.type}`);
     }
+
+    // Mark event as processed after successful handling
+    await markEventProcessed(event.id, event.type);
 
     return NextResponse.json({ received: true });
   } catch (err) {
@@ -98,9 +154,9 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const customerId = typeof customer === 'string' ? customer : customer.id;
   const subscriptionId = typeof subscription === 'string' ? subscription : subscription.id;
 
-  // Fetch full subscription details
-  const sub = await getStripe().subscriptions.retrieve(subscriptionId);
-  const priceId = sub.items.data[0]?.price.id;
+  // Fetch full subscription details (cast to our interface due to SDK type changes)
+  const sub = await getStripe().subscriptions.retrieve(subscriptionId) as unknown as StripeSubscriptionData;
+  const priceId = sub.items?.data?.[0]?.price?.id;
 
   // Determine subscription type from metadata
   const { userId, familyId, subscriptionType } = metadata;
@@ -147,8 +203,8 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   console.log(`Checkout completed: ${subscriptionType} for ${userId || familyId}`);
 }
 
-async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
-  const priceId = subscription.items.data[0]?.price.id;
+async function handleSubscriptionUpdated(subscription: StripeSubscriptionData) {
+  const priceId = subscription.items?.data?.[0]?.price?.id;
 
   // Find what this subscription belongs to by checking metadata or querying
   // First, try to find a user with this subscription
@@ -207,7 +263,7 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   }
 }
 
-async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
+async function handleSubscriptionDeleted(subscription: StripeSubscriptionData) {
   // Similar lookup as above, but set to inactive/free state
   const usersSnap = await adminDb
     .collection('users')
@@ -256,7 +312,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   }
 }
 
-async function handlePaymentFailed(invoice: Stripe.Invoice) {
+async function handlePaymentFailed(invoice: StripeInvoiceData) {
   const subscriptionId = typeof invoice.subscription === 'string'
     ? invoice.subscription
     : invoice.subscription?.id;

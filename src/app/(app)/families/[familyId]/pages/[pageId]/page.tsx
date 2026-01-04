@@ -215,12 +215,12 @@ export default function PageViewRoute() {
         <div>
           <b>Status:</b> {page.status || "draft"}
         </div>
-        {page.updatedAt && (
+        {page.updatedAt ? (
           <div>
             <b>Updated:</b>{" "}
             {toDate(page.updatedAt as Parameters<typeof toDate>[0])?.toLocaleString?.() || ""}
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

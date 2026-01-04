@@ -542,7 +542,6 @@ export default function Canvas({ mode = "edit", initialState }: CanvasProps) {
         const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : undefined;
         console.log("[Canvas] Uploading to Cloudflare...");
         const res = await uploadToCloudflare(undefined, file, idToken, "public", {
-          deliveryVariant: process.env.NEXT_PUBLIC_CF_IMAGES_DELIVERY_VARIANT || "public",
           apiBaseURL: process.env.NEXT_PUBLIC_IMAGES_API_BASE,
         });
 
@@ -651,6 +650,12 @@ export default function Canvas({ mode = "edit", initialState }: CanvasProps) {
       return;
     }
 
+    if (!db) {
+      console.error("Database not initialized");
+      return;
+    }
+    const firestore = db; // Capture for closure
+
     setSaving(true);
     vibrate();
 
@@ -658,13 +663,13 @@ export default function Canvas({ mode = "edit", initialState }: CanvasProps) {
       let pid = pageId;
       const isNew = !pid;
       if (!pid) {
-        pid = doc(collection(db, `families/${familyId}/pages`)).id;
+        pid = doc(collection(firestore, `families/${familyId}/pages`)).id;
       }
 
       // Get existing render ID for replacement
       let existingRenderId = "";
       if (!isNew) {
-        const snap = await getDoc(doc(db, `families/${familyId}/pages/${pid}`));
+        const snap = await getDoc(doc(firestore, `families/${familyId}/pages/${pid}`));
         if (snap.exists()) existingRenderId = snap.data()?.render?.ref || "";
       }
 
@@ -713,7 +718,7 @@ export default function Canvas({ mode = "edit", initialState }: CanvasProps) {
 
       if (isNew) {
         const auth = getAuth();
-        await setDoc(doc(db, `families/${familyId}/pages/${pid}`), {
+        await setDoc(doc(firestore, `families/${familyId}/pages/${pid}`), {
           ...data,
           createdAt: serverTimestamp(),
           createdBy: auth.currentUser?.uid || "anon",
@@ -723,7 +728,7 @@ export default function Canvas({ mode = "edit", initialState }: CanvasProps) {
           status: "published",
         });
       } else {
-        await updateDoc(doc(db, `families/${familyId}/pages/${pid}`), data);
+        await updateDoc(doc(firestore, `families/${familyId}/pages/${pid}`), data);
       }
 
       // Cleanup unused uploads

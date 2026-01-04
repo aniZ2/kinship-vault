@@ -19,15 +19,17 @@ export function FamilySwitcher() {
 
   useEffect(() => {
     const load = async () => {
+      if (!auth || !db) { setLoading(false); return; }
       const user = auth.currentUser;
       if (!user) { setLoading(false); return; }
+      const firestore = db; // Capture for closure
 
       try {
-        const memberships = await getDocs(query(collection(db, "memberships"), where("uid", "==", user.uid)));
+        const memberships = await getDocs(query(collection(firestore, "memberships"), where("uid", "==", user.uid)));
         const list: Family[] = [];
         for (const m of memberships.docs) {
           const data = m.data();
-          const famSnap = await getDoc(doc(db, "families", data.familyId));
+          const famSnap = await getDoc(doc(firestore, "families", data.familyId));
           if (famSnap.exists()) {
             list.push({ id: famSnap.id, name: famSnap.data().name || "Unnamed" });
           }
@@ -48,6 +50,7 @@ export function FamilySwitcher() {
       }
     };
 
+    if (!auth) return;
     const unsub = auth.onAuthStateChanged(() => load());
     return () => unsub();
   }, []);

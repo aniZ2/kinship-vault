@@ -16,10 +16,12 @@ export type SubscriptionTier = 'free' | 'user_pro' | 'family_pro' | 'event_pack'
 // ============================================================================
 
 export const STRIPE_PRICES = {
-  // User Pro - $49/year - Allows joining 5 families instead of 2
+  // User Pro - $5/month or $49/year - Allows joining 5 families instead of 2
+  USER_PRO_MONTHLY: process.env.NEXT_PUBLIC_STRIPE_USER_PRO_MONTHLY || 'price_user_pro_monthly',
   USER_PRO_ANNUAL: process.env.NEXT_PUBLIC_STRIPE_USER_PRO_ANNUAL || 'price_user_pro_annual',
 
-  // Family Pro - $199/year - 5 members, 50GB storage, limited guest uploads
+  // Family Pro - $20/month or $199/year - 5 members, 50GB storage, limited guest uploads
+  FAMILY_PRO_MONTHLY: process.env.NEXT_PUBLIC_STRIPE_FAMILY_PRO_MONTHLY || 'price_family_pro_monthly',
   FAMILY_PRO_ANNUAL: process.env.NEXT_PUBLIC_STRIPE_FAMILY_PRO_ANNUAL || 'price_family_pro_annual',
 
   // Event Pack - $299/year - 5 members, unlimited storage, unlimited guest uploads, view links, 5 free yearbooks
@@ -32,10 +34,14 @@ export const STRIPE_PRICES = {
 
 export const PRICING = {
   userPro: {
+    monthly: 5,
     annual: 49,
+    annualSavings: 11, // vs $5 * 12 = $60
   },
   familyPro: {
+    monthly: 20,
     annual: 199,
+    annualSavings: 41, // vs $20 * 12 = $240
   },
   eventPack: {
     annual: 299,

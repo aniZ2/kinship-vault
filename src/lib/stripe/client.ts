@@ -21,17 +21,13 @@ export function getStripe(): Promise<Stripe | null> {
 
 /**
  * Redirect to Stripe Checkout
+ * Modern approach: redirect directly to the checkout URL
  */
-export async function redirectToCheckout(sessionId: string): Promise<void> {
-  const stripe = await getStripe();
-  if (!stripe) {
-    throw new Error('Stripe not initialized');
+export async function redirectToCheckout(checkoutUrl: string): Promise<void> {
+  if (!checkoutUrl) {
+    throw new Error('Checkout URL required');
   }
-
-  const { error } = await stripe.redirectToCheckout({ sessionId });
-  if (error) {
-    throw error;
-  }
+  window.location.href = checkoutUrl;
 }
 
 /**

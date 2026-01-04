@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { checkClientRateLimit, RATE_LIMITS } from "@/lib/rateLimit";
@@ -10,6 +10,7 @@ import styles from "./upload.module.css";
 
 interface FamilyData {
   name?: string;
+  uploadSecret?: string;
 }
 
 interface UploadItem {
@@ -23,25 +24,42 @@ interface UploadItem {
 
 export default function GuestUploadPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const familyId = params.familyId as string;
+  const uploadSecret = searchParams.get("s") || "";
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [family, setFamily] = useState<FamilyData | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [invalidLink, setInvalidLink] = useState(false);
   const [uploads, setUploads] = useState<UploadItem[]>([]);
   const [uploading, setUploading] = useState(false);
   const [guestName, setGuestName] = useState("");
   const [showNamePrompt, setShowNamePrompt] = useState(true);
 
-  // Fetch family data
+  // Fetch family data and validate secret
   useEffect(() => {
     if (!familyId || !db) return;
+
+    // Check if secret is provided in URL
+    if (!uploadSecret) {
+      setInvalidLink(true);
+      setLoading(false);
+      return;
+    }
+
     (async () => {
       try {
         const snap = await getDoc(doc(db, `families/${familyId}`));
         if (snap.exists()) {
-          setFamily(snap.data() as FamilyData);
+          const data = snap.data() as FamilyData;
+          // Validate the upload secret
+          if (data.uploadSecret !== uploadSecret) {
+            setInvalidLink(true);
+          } else {
+            setFamily(data);
+          }
         } else {
           setNotFound(true);
         }
@@ -50,17 +68,17 @@ export default function GuestUploadPage() {
       }
       setLoading(false);
     })();
-  }, [familyId]);
+  }, [familyId, uploadSecret]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files?.length) return;
 
-    // Check rate limit
+    // Check rate limit (use burst limit for client-side check)
     const rateCheck = checkClientRateLimit(
       "guest-upload",
-      RATE_LIMITS.guestUpload.maxRequests,
-      RATE_LIMITS.guestUpload.windowMs
+      RATE_LIMITS.guestUploadBurst.maxRequests,
+      RATE_LIMITS.guestUploadBurst.windowMs
     );
     if (!rateCheck.allowed) {
       alert(`Upload limit reached. Please wait ${Math.ceil(rateCheck.resetIn / 60000)} minutes.`);
@@ -102,6 +120,7 @@ export default function GuestUploadPage() {
         const formData = new FormData();
         formData.append("file", upload.file);
         formData.append("familyId", familyId);
+        formData.append("uploadSecret", uploadSecret);
         formData.append("guestName", guestName.trim() || "Anonymous");
 
         // Simulate progress updates
@@ -159,13 +178,13 @@ export default function GuestUploadPage() {
     );
   }
 
-  if (notFound) {
+  if (notFound || invalidLink) {
     return (
       <div className={styles.page}>
         <div className={styles.errorState}>
           <div className={styles.errorIcon}>?</div>
-          <h1>Family Not Found</h1>
-          <p>This upload link may be invalid or expired.</p>
+          <h1>{notFound ? "Family Not Found" : "Invalid Upload Link"}</h1>
+          <p>This upload link may be invalid or expired. Please ask for a new QR code.</p>
         </div>
       </div>
     );

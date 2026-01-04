@@ -122,9 +122,10 @@ export default function FamilyStoryPage() {
   const timersRef = useRef<Record<string, NodeJS.Timeout>>({});
   function saveTitleDebounced(pageId: string, title: string) {
     if (!db) return;
+    const firestore = db; // Capture for closure
     clearTimeout(timersRef.current[pageId]);
     timersRef.current[pageId] = setTimeout(async () => {
-      try { await updateDoc(doc(db, `families/${familyId}/pages/${pageId}`), { title: title || "", updatedAt: new Date() }); } catch {}
+      try { await updateDoc(doc(firestore, `families/${familyId}/pages/${pageId}`), { title: title || "", updatedAt: new Date() }); } catch {}
     }, 450);
   }
 

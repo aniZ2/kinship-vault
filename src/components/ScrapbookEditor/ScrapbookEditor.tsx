@@ -104,7 +104,7 @@ export default function ScrapbookEditor({ mode = 'edit', initialState, storageIn
   const [cropArea, setCropArea] = useState({ x: 0, y: 0, width: 100, height: 100 });
   const [cropImageSize, setCropImageSize] = useState({ width: 0, height: 0 });
   const cropImageRef = useRef<HTMLImageElement>(null);
-  const cropDragRef = useRef<{ type: 'move' | 'resize'; startX: number; startY: number; startArea: typeof cropArea } | null>(null);
+  const cropDragRef = useRef<{ type: 'move' | 'tl' | 'tr' | 'bl' | 'br'; startX: number; startY: number; startArea: typeof cropArea } | null>(null);
 
   // Filter picker state
   const [showFilterPicker, setShowFilterPicker] = useState(false);
@@ -1000,13 +1000,13 @@ export default function ScrapbookEditor({ mode = 'edit', initialState, storageIn
   // PINCH GESTURE (MOBILE)
   // ============================================================================
 
-  const getDistance = (touch1: Touch, touch2: Touch) => {
+  const getDistance = (touch1: { clientX: number; clientY: number }, touch2: { clientX: number; clientY: number }) => {
     const dx = touch2.clientX - touch1.clientX;
     const dy = touch2.clientY - touch1.clientY;
     return Math.sqrt(dx * dx + dy * dy);
   };
 
-  const getAngle = (touch1: Touch, touch2: Touch) => {
+  const getAngle = (touch1: { clientX: number; clientY: number }, touch2: { clientX: number; clientY: number }) => {
     return Math.atan2(touch2.clientY - touch1.clientY, touch2.clientX - touch1.clientX) * (180 / Math.PI);
   };
 
@@ -1102,6 +1102,11 @@ export default function ScrapbookEditor({ mode = 'edit', initialState, storageIn
       alert('Cannot save: No family selected');
       return;
     }
+    if (!db) {
+      console.error('Save: Database not initialized');
+      return;
+    }
+    const firestore = db; // Capture for async operations
     if (saving) return;
 
     // Check if any images are still uploading
@@ -1133,7 +1138,7 @@ export default function ScrapbookEditor({ mode = 'edit', initialState, storageIn
 
       if (isNew) {
         const auth = getAuth();
-        await setDoc(doc(db, `families/${familyId}/pages/${pid}`), {
+        await setDoc(doc(firestore, `families/${familyId}/pages/${pid}`), {
           ...data,
           createdAt: serverTimestamp(),
           createdBy: auth.currentUser?.uid || 'anon',
@@ -1142,13 +1147,13 @@ export default function ScrapbookEditor({ mode = 'edit', initialState, storageIn
           status: 'published',
         });
       } else {
-        await updateDoc(doc(db, `families/${familyId}/pages/${pid}`), data);
+        await updateDoc(doc(firestore, `families/${familyId}/pages/${pid}`), data);
       }
 
       // Update storage tracking in family document if bytes were added
       if (sessionStorageAdded !== 0) {
         try {
-          await updateDoc(doc(db, `families/${familyId}`), {
+          await updateDoc(doc(firestore, `families/${familyId}`), {
             storageUsedBytes: increment(sessionStorageAdded),
           });
         } catch (storageErr) {

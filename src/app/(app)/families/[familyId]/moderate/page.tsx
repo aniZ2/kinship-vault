@@ -33,14 +33,14 @@ interface PendingUpload {
 }
 
 function generateViewToken(): string {
-  // Generate a URL-safe random token
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let token = '';
-  for (let i = 0; i < 24; i++) {
-    token += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return token;
+  // Generate a cryptographically secure URL-safe random token (48 hex chars = 192 bits)
+  const array = new Uint8Array(24);
+  crypto.getRandomValues(array);
+  return Array.from(array, (b) => b.toString(16).padStart(2, "0")).join("");
 }
+
+// View token expiration: 7 days from creation
+const VIEW_TOKEN_EXPIRY_DAYS = 7;
 
 type TabType = "pending" | "approved" | "rejected";
 
@@ -106,13 +106,18 @@ export default function ModeratePage() {
       // Generate a view token for the guest
       const viewToken = generateViewToken();
 
-      // Create the view token document
+      // Calculate expiration date (7 days from now)
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + VIEW_TOKEN_EXPIRY_DAYS);
+
+      // Create the view token document with expiration
       await setDoc(doc(db, `viewTokens/${viewToken}`), {
         token: viewToken,
         familyId,
         guestName: upload.guestName,
         guestEmail: upload.guestEmail || null,
         createdAt: serverTimestamp(),
+        expiresAt,
         permissions: {
           canView: true,
           canEdit: false,
@@ -173,7 +178,7 @@ export default function ModeratePage() {
 
     try {
       // Delete from Cloudflare R2 storage
-      if (upload.imageId) {
+      if (upload.imageId && auth) {
         const idToken = await auth.currentUser?.getIdToken();
         if (idToken) {
           await fetch("/api/delete-image", {

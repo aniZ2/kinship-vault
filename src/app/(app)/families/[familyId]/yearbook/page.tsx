@@ -8,7 +8,7 @@ import { db } from "@/lib/firebase/client";
 import { periodTagFor } from "@/lib/utils";
 import { PageCardPreview } from "@/components/FamilyStory/PageCardPreview";
 
-interface PageData { id: string; title?: string; createdBy?: string; [key: string]: unknown; }
+interface PageData { id: string; title?: string; createdBy?: string; timePeriod?: { from?: unknown }; createdAt?: unknown; [key: string]: unknown; }
 
 export default function YearbookPrintPage() {
   const params = useParams();

@@ -3,7 +3,13 @@
 
 import crypto from 'crypto';
 
-const RENDER_SECRET = process.env.RENDER_SECRET || 'dev-secret-change-in-production';
+function getRenderSecret(): string {
+  const secret = process.env.RENDER_SECRET;
+  if (!secret) {
+    throw new Error('RENDER_SECRET environment variable is required');
+  }
+  return secret;
+}
 const TOKEN_EXPIRY_MS = 60 * 1000; // 60 seconds
 
 interface RenderTokenPayload {
@@ -30,7 +36,7 @@ export function createRenderToken(
 
   const data = JSON.stringify(payload);
   const signature = crypto
-    .createHmac('sha256', RENDER_SECRET)
+    .createHmac('sha256', getRenderSecret())
     .update(data)
     .digest('hex');
 
@@ -56,7 +62,7 @@ export function verifyRenderToken(token: string): RenderTokenPayload | null {
 
     // Verify signature
     const expectedSignature = crypto
-      .createHmac('sha256', RENDER_SECRET)
+      .createHmac('sha256', getRenderSecret())
       .update(data)
       .digest('hex');
 

@@ -15,6 +15,7 @@ interface ViewToken {
   guestName: string;
   guestEmail?: string;
   createdAt: { toMillis?: () => number };
+  expiresAt?: { toMillis?: () => number } | { toDate?: () => Date };
   permissions: {
     canView: boolean;
     canEdit: boolean;
@@ -27,11 +28,12 @@ interface FamilyData {
   name: string;
 }
 
+// PageData is loosely typed here since we pass to PageCardPreview which has its own types
 interface PageData {
   id: string;
   title?: string;
   createdAt?: { toMillis?: () => number };
-  state?: unknown;
+  [key: string]: unknown;
 }
 
 export default function GuestViewPage() {
@@ -47,11 +49,12 @@ export default function GuestViewPage() {
 
   useEffect(() => {
     if (!token || !db) return;
+    const firestore = db; // Capture for closure
 
     async function loadData() {
       try {
         // Look up the token
-        const tokenRef = doc(db, `viewTokens/${token}`);
+        const tokenRef = doc(firestore, `viewTokens/${token}`);
         const tokenSnap = await getDoc(tokenRef);
 
         if (!tokenSnap.exists()) {
@@ -62,6 +65,25 @@ export default function GuestViewPage() {
 
         const tokenInfo = tokenSnap.data() as ViewToken;
 
+        // Check if token has expired
+        if (tokenInfo.expiresAt) {
+          let expiryDate: Date;
+          if ("toDate" in tokenInfo.expiresAt && tokenInfo.expiresAt.toDate) {
+            expiryDate = tokenInfo.expiresAt.toDate();
+          } else if ("toMillis" in tokenInfo.expiresAt && tokenInfo.expiresAt.toMillis) {
+            expiryDate = new Date(tokenInfo.expiresAt.toMillis());
+          } else {
+            // Assume it's already a Date or timestamp
+            expiryDate = new Date(tokenInfo.expiresAt as unknown as string | number);
+          }
+
+          if (new Date() > expiryDate) {
+            setError("This view link has expired. Please request a new link.");
+            setLoading(false);
+            return;
+          }
+        }
+
         if (!tokenInfo.permissions?.canView) {
           setError("You don't have permission to view this scrapbook.");
           setLoading(false);
@@ -71,7 +93,7 @@ export default function GuestViewPage() {
         setTokenData(tokenInfo);
 
         // Get family data
-        const familyRef = doc(db, `families/${tokenInfo.familyId}`);
+        const familyRef = doc(firestore, `families/${tokenInfo.familyId}`);
         const familySnap = await getDoc(familyRef);
 
         if (!familySnap.exists()) {
@@ -83,7 +105,7 @@ export default function GuestViewPage() {
         setFamily(familySnap.data() as FamilyData);
 
         // Get pages
-        const pagesRef = collection(db, `families/${tokenInfo.familyId}/pages`);
+        const pagesRef = collection(firestore, `families/${tokenInfo.familyId}/pages`);
         const pagesQuery = query(pagesRef, orderBy("order", "desc"));
         const pagesSnap = await getDocs(pagesQuery);
 
@@ -160,7 +182,7 @@ export default function GuestViewPage() {
               familyId={tokenData?.familyId || ""}
               page={selectedPage}
               className={styles.largePreview}
-              size="large"
+              size="l"
             />
           </div>
         </main>

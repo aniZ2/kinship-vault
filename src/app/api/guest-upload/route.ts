@@ -1,7 +1,7 @@
 // src/app/api/guest-upload/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase/admin";
-import { checkServerRateLimit, getClientIdentifier, rateLimitResponse, RATE_LIMITS } from "@/lib/rateLimit";
+import { checkServerRateLimitAsync, getClientIdentifier, rateLimitResponse, RATE_LIMITS } from "@/lib/rateLimit";
 import { FieldValue } from "firebase-admin/firestore";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -15,16 +15,22 @@ export async function POST(request: NextRequest) {
     // Parse form data first to get familyId for rate limit key
     const formData = await request.formData();
     const familyId = formData.get("familyId") as string | null;
+    const uploadSecret = formData.get("uploadSecret") as string | null;
 
     if (!familyId) {
       return NextResponse.json({ error: "No family ID provided" }, { status: 400 });
+    }
+
+    if (!uploadSecret) {
+      return NextResponse.json({ error: "Invalid upload link" }, { status: 403 });
     }
 
     // Rate limit key: IP + familyId (prevents abuse across families)
     const rateLimitKey = `guest-upload:${familyId}`;
 
     // Check burst limit (5/minute) - prevents rapid-fire uploads
-    const burstLimit = checkServerRateLimit(
+    // Uses distributed rate limiting via Upstash Redis
+    const burstLimit = await checkServerRateLimitAsync(
       clientId,
       `${rateLimitKey}:burst`,
       RATE_LIMITS.guestUploadBurst.maxRequests,
@@ -36,7 +42,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check sustained limit (20/hour) - prevents grinding
-    const sustainedLimit = checkServerRateLimit(
+    const sustainedLimit = await checkServerRateLimitAsync(
       clientId,
       `${rateLimitKey}:sustained`,
       RATE_LIMITS.guestUploadSustained.maxRequests,
@@ -72,12 +78,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify family exists
+    // Verify family exists and has guest uploads enabled
     const familyRef = adminDb.doc(`families/${familyId}`);
     const familySnap = await familyRef.get();
 
     if (!familySnap.exists) {
       return NextResponse.json({ error: "Family not found" }, { status: 404 });
+    }
+
+    const familyData = familySnap.data();
+
+    // Validate upload secret (prevents guessing familyIds)
+    if (!familyData?.uploadSecret || familyData.uploadSecret !== uploadSecret) {
+      return NextResponse.json(
+        { error: "Invalid upload link" },
+        { status: 403 }
+      );
+    }
+
+    // Check if family has Event Pack subscription (only tier with guest uploads)
+    const subscriptionType = familyData?.subscription?.type;
+    const subscriptionStatus = familyData?.subscription?.status;
+
+    if (subscriptionType !== "event_pack" || subscriptionStatus !== "active") {
+      return NextResponse.json(
+        { error: "Guest uploads are not enabled for this family" },
+        { status: 403 }
+      );
+    }
+
+    // Check edit window for Event Pack (Year 1 or Renewal period)
+    const editWindowEnd = familyData?.subscription?.editWindowEnd;
+    if (editWindowEnd) {
+      const editWindowDate = editWindowEnd.toDate ? editWindowEnd.toDate() : new Date(editWindowEnd);
+      if (new Date() > editWindowDate) {
+        return NextResponse.json(
+          { error: "The upload period for this event has ended" },
+          { status: 403 }
+        );
+      }
     }
 
     // Upload to images API
