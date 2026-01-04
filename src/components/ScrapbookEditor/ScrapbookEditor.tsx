@@ -9,6 +9,8 @@ import { db } from '@/lib/firebase/client';
 import { uploadToCloudflare } from '@/lib/cfImages';
 import { EditorItem, EditorState, ScrapbookEditorProps, FrameStyle, PhotoFilter, TapePattern, PhotoShape, PhotoShadow, PhotoBorder, FontFamily, TextEffect, TextAlign, TextDecoration, StorageInfo } from './types';
 import { BACKGROUNDS, FRAMES, SHAPES, SHADOWS, BORDERS, STICKERS, FONTS, TEXT_COLORS, TEXT_EFFECTS, TEXT_DECORATIONS, TEXT_ALIGNS, FONT_SIZES, LETTER_SPACINGS, TEXT_BG_COLORS, PHOTO_FILTERS, WASHI_TAPES, generateId } from './constants';
+import { LayoutTemplate, ResolvedSlot, resolveTemplate, ALL_TEMPLATES } from './templates';
+import { TemplatePicker } from './TemplatePicker/TemplatePicker';
 import { StorageIndicator } from '@/components/StorageIndicator';
 import { checkClientRateLimit, RATE_LIMITS } from '@/lib/rateLimit';
 import styles from './ScrapbookEditor.module.css';
@@ -39,8 +41,14 @@ export default function ScrapbookEditor({ mode = 'edit', initialState, storageIn
   const [customBgUploading, setCustomBgUploading] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [drawerTab, setDrawerTab] = useState<'photo' | 'text' | 'sticker' | 'tape' | 'frame' | 'shape' | 'shadow' | 'border' | 'background'>('photo');
+  const [drawerTab, setDrawerTab] = useState<'photo' | 'text' | 'sticker' | 'tape' | 'frame' | 'shape' | 'shadow' | 'border' | 'background' | 'layout'>('photo');
   const [saving, setSaving] = useState(false);
+
+  // Template state
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [activeTemplate, setActiveTemplate] = useState<LayoutTemplate | null>(null);
+  const [filledSlots, setFilledSlots] = useState<Set<string>>(new Set());
+  const [pendingSlotId, setPendingSlotId] = useState<string | null>(null);
 
   // History for undo/redo
   const [history, setHistory] = useState<{ items: EditorItem[]; background: string }[]>([
@@ -532,6 +540,20 @@ export default function ScrapbookEditor({ mode = 'edit', initialState, storageIn
     const rect = canvasRef.current?.getBoundingClientRect();
     const size = Math.min(rect?.width || 200, rect?.height || 200) * 0.5;
 
+    // If a template slot is pending, use it for the first photo
+    if (pendingSlotId) {
+      const slots = getResolvedSlots();
+      const slot = slots.find(s => s.id === pendingSlotId);
+      if (slot && fileArray.length > 0) {
+        await addPhotoAtSlot(fileArray[0], slot);
+        setPendingSlotId(null);
+        setDrawerOpen(false);
+        // If more files, continue with normal flow for remaining
+        if (fileArray.length === 1) return;
+        fileArray.shift();
+      }
+    }
+
     for (const file of fileArray) {
       const localURL = URL.createObjectURL(file);
       const today = new Date();
@@ -684,6 +706,104 @@ export default function ScrapbookEditor({ mode = 'edit', initialState, storageIn
       rotation: Math.random() > 0.5 ? -8 : 8, // Slight random tilt
     });
     setDrawerOpen(false);
+  };
+
+  // ============================================================================
+  // TEMPLATE HANDLING
+  // ============================================================================
+
+  const handleSelectTemplate = (template: LayoutTemplate) => {
+    setActiveTemplate(template);
+    setFilledSlots(new Set());
+    setShowTemplatePicker(false);
+    setDrawerOpen(false);
+  };
+
+  const clearTemplate = () => {
+    setActiveTemplate(null);
+    setFilledSlots(new Set());
+    setPendingSlotId(null);
+  };
+
+  // Get resolved slots with pixel values
+  const getResolvedSlots = useCallback((): ResolvedSlot[] => {
+    if (!activeTemplate || !canvasRef.current) return [];
+    const rect = canvasRef.current.getBoundingClientRect();
+    return resolveTemplate(activeTemplate, rect.width, rect.height);
+  }, [activeTemplate]);
+
+  // Handle clicking on a template slot
+  const handleSlotClick = (slotId: string, slotType: 'photo' | 'text') => {
+    if (filledSlots.has(slotId)) return; // Already filled
+
+    if (slotType === 'photo') {
+      setPendingSlotId(slotId);
+      fileInputRef.current?.click();
+    } else if (slotType === 'text') {
+      // Add text at slot position
+      const slots = getResolvedSlots();
+      const slot = slots.find(s => s.id === slotId);
+      if (slot) {
+        addItem({
+          type: 'text',
+          text: slot.placeholder || 'Tap to edit',
+          font: slot.font || 'handwriting',
+          fontSize: slot.fontSize || 24,
+          color: '#3d3d3d',
+          x: slot.x,
+          y: slot.y,
+          width: slot.width,
+          height: slot.height,
+          rotation: slot.rotation || 0,
+        });
+        setFilledSlots(prev => new Set([...prev, slotId]));
+      }
+    }
+  };
+
+  // Modified photo handler to support template slots
+  const addPhotoAtSlot = async (file: File, slot: ResolvedSlot) => {
+    const localURL = URL.createObjectURL(file);
+    const today = new Date();
+    const dateStr = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+    const item = addItem({
+      type: 'image',
+      src: localURL,
+      x: slot.x,
+      y: slot.y,
+      width: slot.width,
+      height: slot.height,
+      rotation: slot.rotation || 0,
+      frame: slot.frame || 'none',
+      shape: slot.shape,
+      filter: 'none',
+      caption: `Memory · ${dateStr}`,
+      isUploading: true,
+      sizeBytes: file.size,
+    });
+
+    setFilledSlots(prev => new Set([...prev, slot.id]));
+
+    // Upload to Cloudflare
+    try {
+      const auth = getAuth();
+      const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : undefined;
+
+      const res = await uploadToCloudflare(undefined, file, idToken, 'public', {
+        apiBaseURL: process.env.NEXT_PUBLIC_IMAGES_API_BASE,
+      });
+
+      if (res?.deliveryURL && res?.imageId) {
+        URL.revokeObjectURL(localURL);
+        updateItem(item.id, { src: res.deliveryURL, cfId: res.imageId, isUploading: false });
+        setSessionStorageAdded(prev => prev + file.size);
+      } else {
+        updateItem(item.id, { isUploading: false, sizeBytes: 0 });
+      }
+    } catch {
+      updateItem(item.id, { isUploading: false, sizeBytes: 0 });
+    }
   };
 
   // ============================================================================
@@ -1419,12 +1539,13 @@ export default function ScrapbookEditor({ mode = 'edit', initialState, storageIn
         </div>
 
         <nav className={styles.drawerTabs}>
-          {(['photo', 'text', 'sticker', 'tape', 'frame', 'shape', 'shadow', 'border', 'background'] as const).map(tab => (
+          {(['layout', 'photo', 'text', 'sticker', 'tape', 'frame', 'shape', 'shadow', 'border', 'background'] as const).map(tab => (
             <button
               key={tab}
               className={`${styles.tabBtn} ${drawerTab === tab ? styles.activeTab : ''}`}
               onClick={() => setDrawerTab(tab)}
             >
+              {tab === 'layout' && '📐'}
               {tab === 'photo' && '📷'}
               {tab === 'text' && '✏️'}
               {tab === 'sticker' && '😊'}
@@ -1440,6 +1561,32 @@ export default function ScrapbookEditor({ mode = 'edit', initialState, storageIn
         </nav>
 
         <div className={styles.drawerContent}>
+          {/* Layout Tab */}
+          {drawerTab === 'layout' && (
+            <div className={styles.tabPanel}>
+              <button className={styles.uploadBtn} onClick={() => setShowTemplatePicker(true)}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="3" width="7" height="7" />
+                  <rect x="14" y="3" width="7" height="7" />
+                  <rect x="3" y="14" width="7" height="7" />
+                  <rect x="14" y="14" width="7" height="7" />
+                </svg>
+                <span>Choose Layout</span>
+              </button>
+              {activeTemplate && (
+                <div className={styles.activeTemplateInfo}>
+                  <p className={styles.templateLabel}>Active: {activeTemplate.name}</p>
+                  <p className={styles.templateHint}>
+                    Tap empty slots on the page to fill them
+                  </p>
+                  <button className={styles.clearTemplateBtn} onClick={clearTemplate}>
+                    Clear Layout
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Photo Tab */}
           {drawerTab === 'photo' && (
             <div className={styles.tabPanel}>
@@ -1805,6 +1952,45 @@ export default function ScrapbookEditor({ mode = 'edit', initialState, storageIn
             }
           }}
         >
+          {/* Template slot placeholders */}
+          {activeTemplate && getResolvedSlots().map((slot) => {
+            const isFilled = filledSlots.has(slot.id);
+            if (isFilled) return null;
+
+            return (
+              <div
+                key={slot.id}
+                className={`${styles.templateSlot} ${slot.type === 'photo' ? styles.photoSlot : styles.textSlot}`}
+                style={{
+                  left: slot.x,
+                  top: slot.y,
+                  width: slot.width,
+                  height: slot.height,
+                  transform: slot.rotation ? `rotate(${slot.rotation}deg)` : undefined,
+                }}
+                onClick={() => handleSlotClick(slot.id, slot.type)}
+              >
+                {slot.type === 'photo' ? (
+                  <div className={styles.slotIcon}>
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <rect x="3" y="3" width="18" height="18" rx="2" />
+                      <circle cx="8.5" cy="8.5" r="1.5" />
+                      <path d="M21 15l-5-5L5 21" />
+                    </svg>
+                    <span>Tap to add photo</span>
+                  </div>
+                ) : (
+                  <div className={styles.slotIcon}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
+                    </svg>
+                    <span>{slot.placeholder || 'Tap to add text'}</span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
           {items.map(renderItem)}
         </div>
       </main>
@@ -1890,6 +2076,14 @@ export default function ScrapbookEditor({ mode = 'edit', initialState, storageIn
           </div>
         </div>
       )}
+
+      {/* Template Picker Modal */}
+      <TemplatePicker
+        isOpen={showTemplatePicker}
+        onClose={() => setShowTemplatePicker(false)}
+        onSelectTemplate={handleSelectTemplate}
+        currentPhotoCount={items.filter(i => i.type === 'image').length}
+      />
     </div>
   );
 }
