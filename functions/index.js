@@ -788,3 +788,95 @@ exports.migrateLockedField = onSchedule("0 3 1 * *", async () => {
 
   console.log(`migrateLockedField completed: ${migrated} pages migrated`);
 });
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Page Rendering (Puppeteer)
+// ───────────────────────────────────────────────────────────────────────────────
+
+const { renderPage, isProUser, CANVAS_WIDTH, CANVAS_HEIGHT } = require("./renderPage");
+
+/**
+ * Render a scrapbook page as an image or PDF
+ * POST /renderPageImage
+ * Body: { familyId, pageId, format: "png" | "jpeg" | "pdf" }
+ * Headers: Authorization: Bearer <firebase-id-token>
+ *
+ * Returns: { result: { data: base64, mimeType, width, height } }
+ */
+exports.renderPageImage = onRequest(
+  {
+    region: "us-central1",
+    memory: "1GiB",
+    timeoutSeconds: 120,
+    cors: true,
+  },
+  (req, res) => {
+    corsHandler(req, res, async () => {
+      // Verify authentication
+      const auth = await verifyAuth(req);
+      if (!auth?.uid) {
+        return sendError(res, "unauthenticated", "Sign in required");
+      }
+
+      // Parse request
+      const { familyId, pageId, format = "jpeg" } = req.body || {};
+      if (!familyId || !pageId) {
+        return sendError(res, "invalid-argument", "familyId and pageId are required");
+      }
+
+      // Validate format
+      const validFormats = ["png", "jpeg", "pdf"];
+      if (!validFormats.includes(format)) {
+        return sendError(res, "invalid-argument", `Invalid format. Must be one of: ${validFormats.join(", ")}`);
+      }
+
+      try {
+        const db = getFirestore();
+
+        // Check if user has access to this page (member of family)
+        const memDoc = await db.collection("memberships").doc(memId(auth.uid, familyId)).get();
+        if (!memDoc.exists) {
+          return sendError(res, "permission-denied", "You don't have access to this family");
+        }
+
+        // Check if page exists
+        const pageDoc = await db.collection("families").doc(familyId).collection("pages").doc(pageId).get();
+        if (!pageDoc.exists) {
+          return sendError(res, "not-found", "Page not found");
+        }
+
+        // Determine quality based on subscription
+        const isPro = await isProUser(auth.uid);
+        const quality = isPro ? "pro" : "standard";
+
+        console.log(`Rendering page ${pageId} for user ${auth.uid} (quality: ${quality}, format: ${format})`);
+
+        // Render the page
+        const imageBuffer = await renderPage(familyId, pageId, format, quality);
+
+        // Determine MIME type
+        const mimeType = format === "pdf" ? "application/pdf" :
+                         format === "png" ? "image/png" : "image/jpeg";
+
+        // Calculate dimensions
+        const scaleFactor = quality === "pro" ? 4.17 : 1;
+        const width = Math.round(CANVAS_WIDTH * scaleFactor);
+        const height = Math.round(CANVAS_HEIGHT * scaleFactor);
+
+        // Return as base64
+        return sendSuccess(res, {
+          data: imageBuffer.toString("base64"),
+          mimeType,
+          width,
+          height,
+          quality,
+          format,
+        });
+
+      } catch (error) {
+        console.error("Render error:", error);
+        return sendError(res, "internal", error.message || "Failed to render page");
+      }
+    });
+  }
+);
