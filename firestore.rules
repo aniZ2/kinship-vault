@@ -71,34 +71,22 @@ service cloud.firestore {
       let fam = getFamily(familyId).data;
       let sub = fam.subscription;
 
-      // Free tier always has edit access
-      if (sub == null || sub.type == 'free') {
-        return true;
-      }
-
-      // Family Pro: check subscription status
-      if (sub.type == 'family_pro') {
-        return sub.status == 'active' || sub.status == 'trialing';
-      }
-
-      // Event Pack: check edit window
-      if (sub.type == 'event_pack') {
-        // Must have active subscription
-        if (sub.status != 'active' && sub.status != 'trialing') {
-          return false;
-        }
-        // Check edit window end timestamp
-        if (sub.editWindowEnd != null) {
-          return request.time < sub.editWindowEnd;
-        }
-        // Fallback to currentPeriodEnd
-        if (sub.currentPeriodEnd != null) {
-          return request.time < sub.currentPeriodEnd;
-        }
-        return false;
-      }
-
-      return true;
+      // Free tier or no subscription always has edit access
+      return sub == null
+        || sub.type == 'free'
+        // Family Pro: check subscription status
+        || (sub.type == 'family_pro' && (sub.status == 'active' || sub.status == 'trialing'))
+        // Event Pack: check status AND edit window
+        || (sub.type == 'event_pack'
+            && (sub.status == 'active' || sub.status == 'trialing')
+            && (
+              // Check edit window end timestamp
+              (sub.editWindowEnd != null && request.time < sub.editWindowEnd)
+              // Or fallback to currentPeriodEnd
+              || (sub.editWindowEnd == null && sub.currentPeriodEnd != null && request.time < sub.currentPeriodEnd)
+            ))
+        // Unknown tier - allow access
+        || (sub.type != 'free' && sub.type != 'family_pro' && sub.type != 'event_pack');
     }
 
     // Check if family is in archived (view-only) mode
@@ -107,21 +95,15 @@ service cloud.firestore {
       let fam = getFamily(familyId).data;
       let sub = fam.subscription;
 
-      if (sub == null || sub.type != 'event_pack') {
-        return false;
-      }
-
-      // Explicitly marked as archived
-      if (sub.isArchived == true) {
-        return true;
-      }
-
-      // Edit window expired
-      if (sub.editWindowEnd != null && request.time >= sub.editWindowEnd) {
-        return true;
-      }
-
-      return false;
+      // Only Event Pack can be archived
+      return sub != null
+        && sub.type == 'event_pack'
+        && (
+          // Explicitly marked as archived
+          sub.isArchived == true
+          // Or edit window expired
+          || (sub.editWindowEnd != null && request.time >= sub.editWindowEnd)
+        );
     }
     
     // =========================================================================
