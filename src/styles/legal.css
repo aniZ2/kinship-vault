@@ -1,0 +1,260 @@
+/* src/styles/legal.css */
+
+.legal-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-sans);
+  background: #FAFAFA;
+  color: var(--foreground-muted);
+}
+
+/* ============================================================================
+   HEADER
+   ============================================================================ */
+
+.legal-header {
+  padding: 1.5rem 0;
+  background: #fff;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.legal-header .wrap {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.legal-header .brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+}
+
+.legal-header .brand-mark {
+  width: 2.5rem;
+  height: 2.5rem;
+  background: linear-gradient(135deg, #e11d48 0%, #f43f5e 50%, #fb7185 100%);
+  color: #fff;
+  border-radius: 0.625rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.875rem;
+  box-shadow: 0 2px 8px rgba(225, 29, 72, 0.2);
+}
+
+.legal-header .brand-text {
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: var(--foreground);
+}
+
+/* ============================================================================
+   MAIN CONTENT
+   ============================================================================ */
+
+.legal-main {
+  flex: 1;
+  padding: 3rem 0 5rem;
+}
+
+.legal-main .wrap {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.legal-main h1 {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--foreground);
+  margin: 0 0 0.5rem;
+  letter-spacing: -0.02em;
+}
+
+.effective-date {
+  font-size: 0.9375rem;
+  color: var(--muted);
+  margin: 0 0 3rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.legal-main section {
+  margin-bottom: 2.5rem;
+}
+
+.legal-main h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--foreground);
+  margin: 0 0 1rem;
+  padding-top: 0.5rem;
+}
+
+.legal-main h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 1.5rem 0 0.75rem;
+}
+
+.legal-main p {
+  font-size: 1rem;
+  line-height: 1.75;
+  color: var(--foreground-muted);
+  margin: 0 0 1rem;
+}
+
+.legal-main ul {
+  margin: 0 0 1rem;
+  padding-left: 1.5rem;
+}
+
+.legal-main li {
+  font-size: 1rem;
+  line-height: 1.75;
+  color: var(--foreground-muted);
+  margin-bottom: 0.5rem;
+}
+
+.legal-main li strong {
+  color: var(--foreground);
+}
+
+.legal-main a {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.legal-main a:hover {
+  text-decoration: underline;
+}
+
+.contact-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.contact-list li {
+  padding: 0.5rem 0;
+}
+
+/* ============================================================================
+   FOOTER
+   ============================================================================ */
+
+.legal-footer {
+  padding: 2rem 0;
+  background: #fff;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.legal-footer .wrap {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.legal-footer p {
+  font-size: 0.875rem;
+  color: var(--muted);
+  margin: 0;
+}
+
+.legal-links {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.legal-links a {
+  font-size: 0.875rem;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.legal-links a:hover {
+  color: var(--primary);
+}
+
+/* ============================================================================
+   RESPONSIVE
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  .legal-main {
+    padding: 2rem 0 4rem;
+  }
+
+  .legal-main .wrap {
+    padding: 0 1rem;
+  }
+
+  .legal-main h1 {
+    font-size: 2rem;
+  }
+
+  .legal-main h2 {
+    font-size: 1.375rem;
+  }
+
+  .legal-main h3 {
+    font-size: 1.0625rem;
+  }
+
+  .legal-main p,
+  .legal-main li {
+    font-size: 0.9375rem;
+  }
+
+  .legal-footer .wrap {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .legal-header .wrap {
+    padding: 0 1rem;
+  }
+
+  .legal-header .brand-mark {
+    width: 2.25rem;
+    height: 2.25rem;
+    font-size: 0.75rem;
+  }
+
+  .legal-header .brand-text {
+    font-size: 1.125rem;
+  }
+
+  .legal-main h1 {
+    font-size: 1.75rem;
+  }
+
+  .effective-date {
+    font-size: 0.875rem;
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+  }
+
+  .legal-main section {
+    margin-bottom: 2rem;
+  }
+
+  .legal-main h2 {
+    font-size: 1.25rem;
+  }
+
+  .legal-links {
+    gap: 1rem;
+  }
+}
