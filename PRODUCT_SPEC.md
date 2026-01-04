@@ -25,18 +25,18 @@ Kinship Vault is a family scrapbook platform with two distinct products:
 
 ## Pricing
 
-### User Pro - $5/mo or $50/yr
+### User Pro - $5/mo or $49/yr
 | | Free User | Pro User |
 |--|-----------|----------|
 | Families can join | 2 | 5 |
 
-### Family Pro - $10/mo or $100/yr
+### Family Pro - $19.99/mo or $199/yr
 | | Free Family | Pro Family |
 |--|-------------|------------|
 | Members | 5 | 25 |
 | Storage | 1GB | Unlimited |
 
-### Event Pack - $99/year
+### Event Pack - $299/year
 | Feature | Included |
 |---------|----------|
 | Members | Unlimited |

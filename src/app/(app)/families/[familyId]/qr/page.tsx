@@ -4,13 +4,21 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import QRCode from "qrcode";
 import styles from "./qr.module.css";
 
 interface FamilyData {
   name?: string;
+  uploadSecret?: string;
+}
+
+// Generate a cryptographically secure upload secret
+function generateUploadSecret(): string {
+  const array = new Uint8Array(24);
+  crypto.getRandomValues(array);
+  return Array.from(array, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 export default function QRCodePage() {
@@ -20,21 +28,37 @@ export default function QRCodePage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const [family, setFamily] = useState<FamilyData | null>(null);
+  const [uploadSecret, setUploadSecret] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
-  // Generate the upload URL
-  const uploadUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/upload/${familyId}`
+  // Generate the upload URL with secret
+  const uploadUrl = typeof window !== "undefined" && uploadSecret
+    ? `${window.location.origin}/upload/${familyId}?s=${uploadSecret}`
     : "";
 
-  // Fetch family data
+  // Fetch family data and ensure upload secret exists
   useEffect(() => {
     if (!familyId || !db) return;
     (async () => {
-      const snap = await getDoc(doc(db, `families/${familyId}`));
+      const familyRef = doc(db, `families/${familyId}`);
+      const snap = await getDoc(familyRef);
       if (snap.exists()) {
-        setFamily(snap.data() as FamilyData);
+        const data = snap.data() as FamilyData;
+        setFamily(data);
+
+        // Generate upload secret if it doesn't exist
+        if (data.uploadSecret) {
+          setUploadSecret(data.uploadSecret);
+        } else {
+          const newSecret = generateUploadSecret();
+          try {
+            await updateDoc(familyRef, { uploadSecret: newSecret });
+            setUploadSecret(newSecret);
+          } catch (err) {
+            console.error("Failed to generate upload secret:", err);
+          }
+        }
       } else {
         router.replace("/families");
         return;
