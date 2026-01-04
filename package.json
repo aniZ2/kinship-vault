@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@stripe/stripe-js": "^8.6.0",
+    "@upstash/ratelimit": "^2.0.7",
+    "@upstash/redis": "^1.36.0",
     "firebase": "^12.7.0",
     "firebase-admin": "^13.6.0",
     "html-to-image": "^1.11.13",

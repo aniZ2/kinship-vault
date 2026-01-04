@@ -1,16 +1,20 @@
 // src/app/(app)/families/[familyId]/print/checkout/page.tsx
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { doc, getDoc, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase/client";
 import { formatMoney } from "@/lib/utils";
 import { PageCardPreview } from "@/components/FamilyStory/PageCardPreview";
+import { CompileBookButton } from "@/components/BookCompiler";
+import { CoverCustomization, type CoverCustomizationData } from "@/components/PrintOrder";
 
 const PRICING = { currency: "USD", baseBySize: { "8x8": 24, "10x10": 32, "8.5x11": 29 } as Record<string, number>, perExtraPage: 0.75, hardcoverUpcharge: 8, premiumPaperUpcharge: 6, shippingFlat: 6.95, taxRate: 0, includedPages: 20 };
 
 interface PageData { id: string; title?: string; previewURL?: string; [key: string]: unknown; }
+
+type BookSize = "8x8" | "10x10" | "8.5x11";
 
 export default function YearbookCheckoutPage() {
   const params = useParams();
@@ -21,16 +25,31 @@ export default function YearbookCheckoutPage() {
   const [loading, setLoading] = useState(true);
   const [isClient, setIsClient] = useState(false);
   const router = useRouter();
-  const [size, setSize] = useState("8x8");
+  const [size, setSize] = useState<BookSize>("8x8");
   const [cover, setCover] = useState("soft");
   const [paper, setPaper] = useState("standard");
   const [qty, setQty] = useState(1);
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
+  const [compiledPdfUrl, setCompiledPdfUrl] = useState<string | null>(null);
+  const [compileJobId, setCompileJobId] = useState<string | null>(null);
+  const [familyName, setFamilyName] = useState<string>("Family");
+  const [coverCustomization, setCoverCustomization] = useState<CoverCustomizationData | null>(null);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  // Fetch family name
+  useEffect(() => {
+    if (!familyId || !db) return;
+    (async () => {
+      const famDoc = await getDoc(doc(db, `families/${familyId}`));
+      if (famDoc.exists()) {
+        setFamilyName(famDoc.data()?.name || "Family");
+      }
+    })();
+  }, [familyId]);
 
   useEffect(() => {
     if (!familyId || ids.length === 0 || !db) { setPages([]); setLoading(false); return; }
@@ -41,6 +60,11 @@ export default function YearbookCheckoutPage() {
       setPages(list); setLoading(false);
     })();
   }, [familyId, ids]);
+
+  // Cover customization handler
+  const handleCoverChange = useCallback((data: CoverCustomizationData) => {
+    setCoverCustomization(data);
+  }, []);
 
   const pageCount = pages.length;
   const estimate = useMemo(() => {
@@ -59,7 +83,35 @@ export default function YearbookCheckoutPage() {
     if (!familyId || pages.length === 0 || !db || !auth) return;
     setSaving(true);
     try {
-      const order = { familyId, pageIds: pages.map((p) => p.id), pageCount, size, cover, paper, qty, note: note?.slice(0, 600) || "", currency: estimate.currency, unitPrice: +estimate.unit.toFixed(2), subtotal: +estimate.subtotal.toFixed(2), shipping: +estimate.shipping.toFixed(2), tax: +estimate.tax.toFixed(2), total: +estimate.total.toFixed(2), status, createdAt: serverTimestamp(), createdBy: auth.currentUser?.uid || "anon" };
+      const order = {
+        familyId,
+        pageIds: pages.map((p) => p.id),
+        pageCount,
+        size,
+        cover,
+        paper,
+        qty,
+        note: note?.slice(0, 600) || "",
+        currency: estimate.currency,
+        unitPrice: +estimate.unit.toFixed(2),
+        subtotal: +estimate.subtotal.toFixed(2),
+        shipping: +estimate.shipping.toFixed(2),
+        tax: +estimate.tax.toFixed(2),
+        total: +estimate.total.toFixed(2),
+        status,
+        createdAt: serverTimestamp(),
+        createdBy: auth.currentUser?.uid || "anon",
+        // Cover customization
+        coverDesign: coverCustomization ? {
+          coverMode: coverCustomization.coverMode,
+          familyName: coverCustomization.familyName,
+          bookTitle: coverCustomization.bookTitle,
+          primaryColor: coverCustomization.primaryColor,
+          secondaryColor: coverCustomization.secondaryColor,
+          frontCoverImageUrl: coverCustomization.frontCoverImageUrl,
+          wraparoundImageUrl: coverCustomization.wraparoundImageUrl,
+        } : null,
+      };
       const ref = await addDoc(collection(db, `families/${familyId}/printOrders`), order);
       router.replace(status === "pending-payment" ? `/families/${familyId}/print/orders/${ref.id}/pay` : `/families/${familyId}/print/orders/${ref.id}`);
     } catch { alert("Could not save order."); } finally { setSaving(false); }
@@ -78,18 +130,67 @@ export default function YearbookCheckoutPage() {
         <div className="panel">
           <h2 className="h2">Options & Summary</h2>
           <div className="opts" style={{ marginBottom: 12 }}>
-            <label>Size<select value={size} onChange={(e) => setSize(e.target.value)}><option value="8x8">8×8 in</option><option value="10x10">10×10 in</option><option value="8.5x11">8.5×11 in</option></select></label>
+            <label>Size<select value={size} onChange={(e) => setSize(e.target.value as BookSize)}><option value="8x8">8×8 in</option><option value="10x10">10×10 in</option><option value="8.5x11">8.5×11 in</option></select></label>
             <label>Cover<select value={cover} onChange={(e) => setCover(e.target.value)}><option value="soft">Softcover</option><option value="hard">Hardcover (+{formatMoney(PRICING.hardcoverUpcharge)})</option></select></label>
             <label>Paper<select value={paper} onChange={(e) => setPaper(e.target.value)}><option value="standard">Standard</option><option value="premium">Premium (+{formatMoney(PRICING.premiumPaperUpcharge)})</option></select></label>
             <label>Quantity<input type="number" min={1} value={qty} onChange={(e) => setQty(Math.max(1, +e.target.value || 1))} /></label>
-            <label style={{ gridColumn: "1 / -1" }}>Note (optional)<textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} /></label>
           </div>
+
+          {/* Cover Customization */}
+          <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid #e5e7eb" }}>
+            <CoverCustomization
+              familyId={familyId}
+              familyName={familyName}
+              bookSize={size}
+              pageCount={pageCount}
+              onChange={handleCoverChange}
+            />
+          </div>
+
+          {/* Note */}
+          <div className="opts" style={{ marginBottom: 12 }}>
+            <label style={{ gridColumn: "1 / -1" }}>Note (optional)<textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></label>
+          </div>
+
           <div className="summary">
             <div className="row"><span>Unit (est.)</span><span>{formatMoney(estimate.unit)}</span></div>
             <div className="row"><span>Subtotal</span><span>{formatMoney(estimate.subtotal)}</span></div>
             <div className="row"><span>Shipping</span><span>{formatMoney(estimate.shipping)}</span></div>
             <div className="row total"><span>Total</span><span>{formatMoney(estimate.total)}</span></div>
             <div className="btns"><button className="btn ghost" disabled={saving || pageCount === 0} onClick={() => saveQuote("quote")}>{saving ? "Saving…" : "Save Quote"}</button><button className="btn primary" disabled={saving || pageCount === 0} onClick={() => saveQuote("pending-payment")}>{saving ? "Working…" : "Place Order"}</button></div>
+          </div>
+
+          {/* Book Compilation Section */}
+          <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid #e5e7eb" }}>
+            <h3 style={{ margin: "0 0 8px", fontSize: 15, fontWeight: 700, color: "#374151" }}>
+              Step 1: Generate Print-Ready PDF
+            </h3>
+            <p style={{ margin: "0 0 12px", fontSize: 13, color: "#6b7280" }}>
+              Compile your pages into a high-quality 300 DPI PDF ready for professional printing.
+            </p>
+            <CompileBookButton
+              familyId={familyId}
+              pageIds={pages.map((p) => p.id)}
+              bookSize={size}
+              buttonText="Generate PDF"
+              disabled={pageCount === 0}
+              onStart={(jobId) => {
+                setCompileJobId(jobId);
+                console.log("Compilation started:", jobId);
+              }}
+              onComplete={(url) => {
+                setCompiledPdfUrl(url);
+                console.log("Compilation complete:", url);
+              }}
+              onError={(error) => {
+                console.error("Compilation error:", error);
+              }}
+            />
+            {compiledPdfUrl && (
+              <p style={{ marginTop: 12, fontSize: 13, color: "#059669" }}>
+                PDF ready for print ordering.
+              </p>
+            )}
           </div>
         </div>
       </div>

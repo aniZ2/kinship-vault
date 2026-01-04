@@ -1,8 +1,18 @@
 // functions/renderPage.js
 // Cloud Function to render scrapbook pages using Puppeteer
+// Supports both legacy single-page rendering and book compiler batch rendering
 
 const admin = require("firebase-admin");
 const crypto = require("crypto");
+
+// Book compiler dimensions (Lulu 2026 specs)
+const {
+  BOOK_SIZES,
+  DEVICE_SCALE_FACTOR,
+  getPageDimensions,
+  BLEED_INCHES,
+  SAFETY_MARGIN_INCHES,
+} = require("./bookCompiler/dimensions");
 
 // Lazy-load puppeteer to reduce cold start time
 let puppeteerCore;
@@ -19,19 +29,30 @@ async function getPuppeteer() {
 const RENDER_SECRET = process.env.RENDER_SECRET || "dev-secret-change-in-production";
 const RENDER_BASE_URL = process.env.RENDER_BASE_URL || "https://kinshipvault.com";
 
-// Canvas dimensions
+// Legacy canvas dimensions (8.5x11 at 72dpi) - for backwards compatibility
 const CANVAS_WIDTH = 612;  // 8.5" at 72dpi
 const CANVAS_HEIGHT = 792; // 11" at 72dpi
 
 /**
  * Create a signed render token
+ * @param {string} familyId - Family ID
+ * @param {string} pageId - Page ID
+ * @param {string} quality - 'standard' or 'pro'
+ * @param {Object} options - Additional options for book compilation
+ * @param {string} options.bookSize - Book size key ('8x8', '10x10', '8.5x11')
+ * @param {boolean} options.includeBleed - Whether to include bleed area
+ * @param {boolean} options.forPrint - Whether this is for print (affects rendering)
  */
-function createRenderToken(familyId, pageId, quality) {
+function createRenderToken(familyId, pageId, quality, options = {}) {
   const payload = {
     familyId,
     pageId,
     timestamp: Date.now(),
     quality,
+    // Book compiler options
+    bookSize: options.bookSize || null,
+    includeBleed: options.includeBleed || false,
+    forPrint: options.forPrint || false,
   };
 
   const data = JSON.stringify(payload);
@@ -156,10 +177,119 @@ async function renderPage(familyId, pageId, format, quality) {
   }
 }
 
+/**
+ * Render a page for book compilation using Lulu 2026 specs
+ *
+ * Key differences from legacy renderPage:
+ * - Uses deviceScaleFactor for true 300 DPI (not viewport scaling)
+ * - Supports multiple book sizes (8x8, 10x10, 8.5x11)
+ * - Includes bleed area for full-bleed printing
+ * - Returns PDF buffer for merging
+ *
+ * @param {string} familyId - Family ID
+ * @param {string} pageId - Page ID
+ * @param {string} bookSize - Book size key ('8x8', '10x10', '8.5x11')
+ * @param {boolean} includeBleed - Whether to include bleed margins
+ * @returns {Promise<Buffer>} PDF buffer
+ */
+async function renderPageForBook(familyId, pageId, bookSize, includeBleed = true) {
+  const { puppeteerCore, chromium } = await getPuppeteer();
+
+  // Get dimensions for this book size
+  const dims = getPageDimensions(bookSize, includeBleed);
+
+  // Create render token with book options
+  const token = createRenderToken(familyId, pageId, "pro", {
+    bookSize,
+    includeBleed,
+    forPrint: true,
+  });
+
+  // Build render URL
+  const renderUrl = new URL(`/render/${familyId}/${pageId}`, RENDER_BASE_URL);
+  renderUrl.searchParams.set("token", token);
+  renderUrl.searchParams.set("bookSize", bookSize);
+  renderUrl.searchParams.set("includeBleed", includeBleed ? "true" : "false");
+  renderUrl.searchParams.set("forPrint", "true");
+
+  console.log("Launching browser for book render:", {
+    familyId,
+    pageId,
+    bookSize,
+    includeBleed,
+    viewport: dims.viewport,
+  });
+
+  // Launch browser with deviceScaleFactor for true 300 DPI
+  // This is the Lulu 2026 recommended approach:
+  // - Set viewport to BASE dimensions (72 DPI)
+  // - Set deviceScaleFactor to 4.166 (300/72)
+  // - This keeps text/vectors sharp while achieving 300 DPI raster output
+  const browser = await puppeteerCore.launch({
+    args: [
+      ...chromium.args,
+      "--disable-web-security", // Allow cross-origin images
+      "--font-render-hinting=none", // Better font rendering for print
+    ],
+    defaultViewport: {
+      width: dims.viewport.width,
+      height: dims.viewport.height,
+      deviceScaleFactor: DEVICE_SCALE_FACTOR, // 4.166 for 300 DPI
+    },
+    executablePath: await chromium.executablePath(),
+    headless: chromium.headless,
+  });
+
+  try {
+    const page = await browser.newPage();
+
+    // Navigate to render page
+    console.log("Navigating to:", renderUrl.toString());
+    await page.goto(renderUrl.toString(), {
+      waitUntil: "networkidle0",
+      timeout: 60000,
+    });
+
+    // Wait for the ready signal
+    await page.waitForSelector("[data-render-ready]", { timeout: 30000 });
+    console.log("Page ready for book render, capturing PDF...");
+
+    // Wait for fonts to load
+    await page.evaluate(() => document.fonts.ready);
+
+    // Additional buffer for complex renders
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Generate PDF with exact dimensions
+    // Using pixel dimensions (which are already scaled by deviceScaleFactor)
+    const pdfBuffer = await page.pdf({
+      width: `${dims.output.width}px`,
+      height: `${dims.output.height}px`,
+      printBackground: true,
+      preferCSSPageSize: false,
+      margin: { top: 0, right: 0, bottom: 0, left: 0 },
+    });
+
+    console.log("Book page PDF capture complete, size:", pdfBuffer.length);
+    return Buffer.from(pdfBuffer);
+
+  } finally {
+    await browser.close();
+  }
+}
+
 module.exports = {
+  // Legacy exports
   renderPage,
   isProUser,
   createRenderToken,
   CANVAS_WIDTH,
   CANVAS_HEIGHT,
+  // Book compiler exports
+  renderPageForBook,
+  BOOK_SIZES,
+  DEVICE_SCALE_FACTOR,
+  getPageDimensions,
+  BLEED_INCHES,
+  SAFETY_MARGIN_INCHES,
 };

@@ -790,6 +790,163 @@ exports.migrateLockedField = onSchedule("0 3 1 * *", async () => {
 });
 
 // ───────────────────────────────────────────────────────────────────────────────
+// CLEANUP JOBS
+// Handles expired view tokens and rejected uploads
+// ───────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Scheduled function that runs daily at 3 AM to:
+ * 1. Delete expired view tokens
+ * 2. Delete rejected uploads older than 30 days
+ * 3. Delete old Stripe event records
+ */
+exports.cleanupExpiredData = onSchedule("0 3 * * *", async () => {
+  const db = getFirestore();
+  const now = Timestamp.now();
+  let deletedTokens = 0;
+  let deletedUploads = 0;
+  let deletedEvents = 0;
+
+  // 1. Delete expired view tokens
+  try {
+    const expiredTokensQuery = await db.collection("viewTokens")
+      .where("expiresAt", "<=", now)
+      .get();
+
+    for (const doc of expiredTokensQuery.docs) {
+      await doc.ref.delete();
+      deletedTokens++;
+    }
+    console.log(`Deleted ${deletedTokens} expired view tokens`);
+  } catch (err) {
+    console.error("Error deleting expired view tokens:", err);
+  }
+
+  // 2. Delete rejected uploads older than 30 days
+  const thirtyDaysAgo = Timestamp.fromDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
+
+  try {
+    const fams = await db.collection("families").get();
+
+    for (const fam of fams.docs) {
+      const rejectedQuery = await fam.ref
+        .collection("pendingUploads")
+        .where("status", "==", "rejected")
+        .where("rejectedAt", "<=", thirtyDaysAgo)
+        .get();
+
+      for (const upload of rejectedQuery.docs) {
+        const data = upload.data();
+
+        // Delete image from R2 if imageId exists
+        if (data.imageId) {
+          try {
+            // Note: R2 deletion would require the R2 client
+            // For now, just delete the Firestore document
+            console.log(`Would delete image ${data.imageId} from R2`);
+          } catch (e) {
+            console.error(`Failed to delete image ${data.imageId}:`, e);
+          }
+        }
+
+        await upload.ref.delete();
+        deletedUploads++;
+      }
+    }
+    console.log(`Deleted ${deletedUploads} old rejected uploads`);
+  } catch (err) {
+    console.error("Error deleting rejected uploads:", err);
+  }
+
+  // 3. Delete old Stripe webhook event records (keep for 7 days for debugging)
+  const sevenDaysAgo = Timestamp.fromDate(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
+
+  try {
+    const oldEventsQuery = await db.collection("stripeEvents")
+      .where("processedAt", "<=", sevenDaysAgo)
+      .get();
+
+    for (const doc of oldEventsQuery.docs) {
+      await doc.ref.delete();
+      deletedEvents++;
+    }
+    console.log(`Deleted ${deletedEvents} old Stripe event records`);
+  } catch (err) {
+    console.error("Error deleting old Stripe events:", err);
+  }
+
+  console.log(`cleanupExpiredData completed: ${deletedTokens} tokens, ${deletedUploads} uploads, ${deletedEvents} events deleted`);
+});
+
+/**
+ * Storage reconciliation job - runs weekly on Sunday at 4 AM
+ * Recalculates actual storage usage for each family to fix any drift
+ */
+exports.reconcileStorage = onSchedule("0 4 * * 0", async () => {
+  const db = getFirestore();
+  let familiesUpdated = 0;
+
+  try {
+    const fams = await db.collection("families").get();
+
+    for (const fam of fams.docs) {
+      try {
+        // Get all pages for this family and sum up storage
+        const pagesSnap = await fam.ref.collection("pages").get();
+
+        let totalBytes = 0;
+
+        for (const pageDoc of pagesSnap.docs) {
+          const pageData = pageDoc.data();
+
+          // Count bytes from page state items
+          if (pageData.state?.items && Array.isArray(pageData.state.items)) {
+            for (const item of pageData.state.items) {
+              if (item.type === "photo" && item.sizeBytes) {
+                totalBytes += item.sizeBytes;
+              }
+            }
+          }
+        }
+
+        // Also count approved pending uploads
+        const approvedUploads = await fam.ref
+          .collection("pendingUploads")
+          .where("status", "==", "approved")
+          .get();
+
+        for (const upload of approvedUploads.docs) {
+          const data = upload.data();
+          if (data.sizeBytes) {
+            totalBytes += data.sizeBytes;
+          }
+        }
+
+        // Update family document with correct storage count
+        const currentData = fam.data();
+        const currentBytes = currentData.storageUsedBytes || 0;
+
+        // Only update if there's a significant difference (> 1MB drift)
+        if (Math.abs(currentBytes - totalBytes) > 1024 * 1024) {
+          await fam.ref.update({
+            storageUsedBytes: totalBytes,
+            storageLastReconciled: FieldValue.serverTimestamp(),
+          });
+          console.log(`Family ${fam.id}: storage corrected from ${currentBytes} to ${totalBytes}`);
+          familiesUpdated++;
+        }
+      } catch (err) {
+        console.error(`Error reconciling storage for family ${fam.id}:`, err);
+      }
+    }
+
+    console.log(`reconcileStorage completed: ${familiesUpdated} families updated`);
+  } catch (err) {
+    console.error("Storage reconciliation failed:", err);
+  }
+});
+
+// ───────────────────────────────────────────────────────────────────────────────
 // Page Rendering (Puppeteer)
 // ───────────────────────────────────────────────────────────────────────────────
 
@@ -876,6 +1033,326 @@ exports.renderPageImage = onRequest(
       } catch (error) {
         console.error("Render error:", error);
         return sendError(res, "internal", error.message || "Failed to render page");
+      }
+    });
+  }
+);
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Book Compiler - Yearbook PDF Generation
+// ───────────────────────────────────────────────────────────────────────────────
+
+const { initializeCompilation } = require("./bookCompiler/init");
+const { handleJobChange } = require("./bookCompiler/renderBatch");
+const { handleMergePhase, refreshDownloadUrl } = require("./bookCompiler/merge");
+const { updateOrderFromWebhook, calculateShippingCost, createPrintJob, storePrintOrder } = require("./bookCompiler/fulfillment/lulu");
+const { generateSimpleCover } = require("./bookCompiler/coverGenerator");
+
+/**
+ * Initialize a book compilation
+ * POST /compileBookInit
+ * Body: { familyId, bookSize, pageIds?, forceRecompile?, acknowledgeWarnings? }
+ * Headers: Authorization: Bearer <firebase-id-token>
+ */
+exports.compileBookInit = onRequest(
+  {
+    region: "us-central1",
+    memory: "256MiB",
+    timeoutSeconds: 60,
+    cors: true,
+  },
+  (req, res) => {
+    corsHandler(req, res, async () => {
+      const auth = await verifyAuth(req);
+      if (!auth?.uid) {
+        return sendError(res, "unauthenticated", "Sign in required");
+      }
+      await initializeCompilation(req, res, auth);
+    });
+  }
+);
+
+/**
+ * Process render batches - triggered by compilation job updates
+ * Renders pages in batches of 5, uploads to R2
+ */
+exports.processRenderBatch = onDocumentWritten(
+  {
+    document: "families/{familyId}/compilationJobs/{jobId}",
+    region: "us-central1",
+    memory: "2GiB",
+    timeoutSeconds: 540,
+    cpu: 2,
+  },
+  async (event) => {
+    await handleJobChange(event);
+  }
+);
+
+/**
+ * Merge PDFs when all pages are rendered
+ * Triggered when job status changes to "merging"
+ */
+exports.mergeBookPdf = onDocumentUpdated(
+  {
+    document: "families/{familyId}/compilationJobs/{jobId}",
+    region: "us-central1",
+    memory: "4GiB",
+    timeoutSeconds: 300,
+  },
+  async (event) => {
+    const before = event.data?.before?.data();
+    const after = event.data?.after?.data();
+
+    // Only trigger when status changes to "merging"
+    if (before?.status !== "merging" && after?.status === "merging") {
+      const jobId = event.params.jobId;
+      console.log(`Merge phase triggered for job ${jobId}`);
+      await handleMergePhase(after, jobId);
+    }
+  }
+);
+
+/**
+ * Refresh download URL for a completed book
+ * POST /refreshBookDownload
+ * Body: { familyId, jobId }
+ */
+exports.refreshBookDownload = onRequest(
+  {
+    region: "us-central1",
+    memory: "256MiB",
+    timeoutSeconds: 30,
+    cors: true,
+  },
+  (req, res) => {
+    corsHandler(req, res, async () => {
+      const auth = await verifyAuth(req);
+      if (!auth?.uid) {
+        return sendError(res, "unauthenticated", "Sign in required");
+      }
+
+      const { familyId, jobId } = req.body || {};
+      if (!familyId || !jobId) {
+        return sendError(res, "invalid-argument", "familyId and jobId are required");
+      }
+
+      // Verify user has access to family
+      const db = getFirestore();
+      const memDoc = await db.collection("memberships").doc(memId(auth.uid, familyId)).get();
+      if (!memDoc.exists) {
+        return sendError(res, "permission-denied", "You don't have access to this family");
+      }
+
+      try {
+        const downloadInfo = await refreshDownloadUrl(familyId, jobId);
+        return sendSuccess(res, downloadInfo);
+      } catch (error) {
+        return sendError(res, "internal", error.message);
+      }
+    });
+  }
+);
+
+/**
+ * Lulu webhook handler for print order status updates
+ * POST /luluWebhook
+ */
+exports.luluWebhook = onRequest(
+  {
+    region: "us-central1",
+    memory: "256MiB",
+    timeoutSeconds: 30,
+  },
+  async (req, res) => {
+    // Verify webhook signature
+    const signature = req.get("X-Lulu-Signature");
+    const secret = process.env.LULU_WEBHOOK_SECRET;
+
+    if (secret && signature) {
+      const crypto = require("crypto");
+      const expectedSig = crypto
+        .createHmac("sha256", secret)
+        .update(JSON.stringify(req.body))
+        .digest("hex");
+
+      if (signature !== expectedSig) {
+        console.warn("Invalid Lulu webhook signature");
+        return res.status(401).json({ error: "Invalid signature" });
+      }
+    }
+
+    const { id: printJobId, status, shipping_info } = req.body || {};
+
+    if (!printJobId) {
+      return res.status(400).json({ error: "Missing print job ID" });
+    }
+
+    try {
+      await updateOrderFromWebhook(printJobId, { status, shipping_info });
+      res.status(200).json({ ok: true });
+    } catch (error) {
+      console.error("Lulu webhook error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+/**
+ * Calculate shipping cost for a print order
+ * POST /calculateLuluCost
+ * Body: { bookSize, coverType, pageCount, quantity, shippingAddress, shippingLevel }
+ */
+exports.calculateLuluCost = onRequest(
+  {
+    region: "us-central1",
+    memory: "256MiB",
+    timeoutSeconds: 30,
+    cors: true,
+  },
+  (req, res) => {
+    corsHandler(req, res, async () => {
+      const auth = await verifyAuth(req);
+      if (!auth?.uid) {
+        return sendError(res, "unauthenticated", "Sign in required");
+      }
+
+      const { bookSize, coverType, pageCount, quantity, shippingAddress, shippingLevel } = req.body || {};
+
+      if (!bookSize || !pageCount || !quantity || !shippingAddress) {
+        return sendError(res, "invalid-argument", "Missing required fields");
+      }
+
+      try {
+        const cost = await calculateShippingCost({
+          bookSize,
+          coverType: coverType || "soft",
+          pageCount,
+          quantity,
+          shippingAddress,
+          shippingLevel: shippingLevel || "MAIL",
+        });
+
+        return sendSuccess(res, cost);
+      } catch (error) {
+        console.error("Cost calculation error:", error);
+        return sendError(res, "internal", error.message);
+      }
+    });
+  }
+);
+
+/**
+ * Create a Lulu print job
+ * POST /createLuluPrintJob
+ * Body: {
+ *   familyId, orderId, compilationJobId, r2Key, bookSize, coverType, pageCount,
+ *   quantity, shippingAddress, shippingLevel, contactEmail,
+ *   // Cover customization (optional):
+ *   familyName, bookTitle, primaryColor, secondaryColor
+ * }
+ */
+exports.createLuluPrintJob = onRequest(
+  {
+    region: "us-central1",
+    memory: "512MiB", // Increased for cover generation
+    timeoutSeconds: 120, // Increased for cover generation
+    cors: true,
+  },
+  (req, res) => {
+    corsHandler(req, res, async () => {
+      const auth = await verifyAuth(req);
+      if (!auth?.uid) {
+        return sendError(res, "unauthenticated", "Sign in required");
+      }
+
+      const {
+        familyId,
+        orderId,
+        compilationJobId,
+        r2Key,
+        bookSize,
+        coverType,
+        pageCount,
+        quantity,
+        shippingAddress,
+        shippingLevel,
+        contactEmail,
+        // Cover customization
+        familyName,
+        bookTitle,
+        primaryColor,
+        secondaryColor,
+        // Cover mode: "solid", "front-image", or "wraparound"
+        coverMode,
+        frontCoverImageUrl,
+        wraparoundImageUrl,
+      } = req.body || {};
+
+      if (!familyId || !r2Key || !shippingAddress) {
+        return sendError(res, "invalid-argument", "Missing required fields");
+      }
+
+      // Verify user has access to family
+      const db = getFirestore();
+      const memDoc = await db.collection("memberships").doc(memId(auth.uid, familyId)).get();
+      if (!memDoc.exists) {
+        return sendError(res, "permission-denied", "You don't have access to this family");
+      }
+
+      try {
+        // Get family name if not provided
+        let displayFamilyName = familyName;
+        if (!displayFamilyName) {
+          const familyDoc = await db.collection("families").doc(familyId).get();
+          displayFamilyName = familyDoc.data()?.name || "Family";
+        }
+
+        // Step 1: Generate the cover PDF
+        console.log(`Generating cover PDF for family ${familyId}...`);
+        const coverResult = await generateSimpleCover({
+          familyId,
+          familyName: displayFamilyName,
+          bookTitle: bookTitle || `${new Date().getFullYear()} Yearbook`,
+          bookSize: bookSize || "8x8",
+          pageCount: pageCount || 20,
+          coverType: coverType || "soft",
+          paperType: "standard",
+          // Cover style options
+          coverMode: coverMode || "solid",
+          primaryColor: primaryColor || "#1e3a5f",
+          secondaryColor: secondaryColor || "#ffffff",
+          // Image URLs for image-based cover modes
+          frontCoverImageUrl,
+          wraparoundImageUrl,
+        });
+
+        console.log(`Cover PDF generated: ${coverResult.r2Key}`);
+
+        // Step 2: Create the print job with Lulu
+        const luluResponse = await createPrintJob({
+          familyId,
+          jobId: compilationJobId,
+          interiorR2Key: r2Key,
+          coverR2Key: coverResult.r2Key,
+          bookSize: bookSize || "8x8",
+          coverType: coverType || "soft",
+          quantity: quantity || 1,
+          shippingAddress,
+          shippingLevel: shippingLevel || "MAIL",
+          contactEmail: contactEmail || auth.email,
+          pageCount: pageCount || 20,
+          createdBy: auth.uid,
+        });
+
+        return sendSuccess(res, {
+          printJobId: luluResponse.id,
+          status: luluResponse.status?.name || "CREATED",
+          coverR2Key: coverResult.r2Key,
+        });
+      } catch (error) {
+        console.error("Create print job error:", error);
+        return sendError(res, "internal", error.message);
       }
     });
   }

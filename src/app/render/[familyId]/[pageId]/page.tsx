@@ -1,26 +1,45 @@
 // src/app/render/[familyId]/[pageId]/page.tsx
 // Server-rendered page for Puppeteer capture
+// Supports both legacy rendering and book compilation (Lulu 2026 specs)
 
 import { notFound } from 'next/navigation';
 import { adminDb } from '@/lib/firebase/admin';
 import { verifyRenderToken } from '@/lib/renderToken';
 import { RenderCanvasWrapper } from './RenderCanvasWrapper';
 
-// Canvas dimensions for print quality
+// Legacy canvas dimensions (8.5x11 at 72dpi)
 const CANVAS_WIDTH = 612;  // 8.5" at 72dpi
 const CANVAS_HEIGHT = 792; // 11" at 72dpi
+
+// Book sizes for compilation (Lulu 2026 specs)
+// Bleed: 0.125" (9px at 72dpi), Safety: 0.5" (36px at 72dpi)
+const BOOK_SIZES: Record<string, { width: number; height: number; name: string }> = {
+  '8x8': { width: 576, height: 576, name: '8×8 Square' },
+  '10x10': { width: 720, height: 720, name: '10×10 Square' },
+  '8.5x11': { width: 612, height: 792, name: '8.5×11 Portrait' },
+};
+
+const BLEED_PX = 9;  // 0.125" at 72dpi
+const SAFETY_PX = 36; // 0.5" at 72dpi
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 interface Props {
   params: Promise<{ familyId: string; pageId: string }>;
-  searchParams: Promise<{ token?: string; scale?: string }>;
+  searchParams: Promise<{
+    token?: string;
+    scale?: string;
+    // Book compilation params
+    bookSize?: string;
+    includeBleed?: string;
+    forPrint?: string;
+  }>;
 }
 
 export default async function RenderPage({ params, searchParams }: Props) {
   const { familyId, pageId } = await params;
-  const { token, scale } = await searchParams;
+  const { token, scale, bookSize, includeBleed, forPrint } = await searchParams;
 
   // Verify token
   if (!token) {
@@ -67,10 +86,38 @@ export default async function RenderPage({ params, searchParams }: Props) {
   const pageData = pageDoc.data();
   const state = pageData?.state || { background: 'cream', items: [] };
 
-  // Calculate scale factor (1 = 72dpi, 4.17 = 300dpi)
+  // Determine canvas dimensions
+  // For book compilation: use book size + optional bleed
+  // For legacy: use scale factor on default 8.5x11
+  const isBookCompilation = bookSize && BOOK_SIZES[bookSize];
+  const shouldIncludeBleed = includeBleed === 'true';
+  const isForPrint = forPrint === 'true';
+
+  let baseWidth: number;
+  let baseHeight: number;
+  let bleedOffset = 0;
+
+  if (isBookCompilation) {
+    // Book compilation mode
+    const size = BOOK_SIZES[bookSize];
+    baseWidth = size.width;
+    baseHeight = size.height;
+    if (shouldIncludeBleed) {
+      bleedOffset = BLEED_PX;
+      baseWidth += BLEED_PX * 2;
+      baseHeight += BLEED_PX * 2;
+    }
+  } else {
+    // Legacy mode
+    baseWidth = CANVAS_WIDTH;
+    baseHeight = CANVAS_HEIGHT;
+  }
+
+  // Apply scale factor (for legacy mode with viewport scaling)
+  // Note: For book compilation, deviceScaleFactor handles 300 DPI
   const scaleFactor = scale ? parseFloat(scale) : 1;
-  const canvasWidth = Math.round(CANVAS_WIDTH * scaleFactor);
-  const canvasHeight = Math.round(CANVAS_HEIGHT * scaleFactor);
+  const canvasWidth = Math.round(baseWidth * scaleFactor);
+  const canvasHeight = Math.round(baseHeight * scaleFactor);
 
   return (
     <html>
@@ -103,6 +150,13 @@ export default async function RenderPage({ params, searchParams }: Props) {
               -webkit-print-color-adjust: exact !important;
             }
           }
+          ${isForPrint ? `
+          /* Print optimization: disable subpixel antialiasing for sharper text */
+          * {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+          }
+          ` : ''}
         `}} />
       </head>
       <body>
@@ -111,6 +165,8 @@ export default async function RenderPage({ params, searchParams }: Props) {
           width={canvasWidth}
           height={canvasHeight}
           scaleFactor={scaleFactor}
+          bleedOffset={shouldIncludeBleed ? bleedOffset * scaleFactor : 0}
+          isForPrint={isForPrint}
         />
       </body>
     </html>

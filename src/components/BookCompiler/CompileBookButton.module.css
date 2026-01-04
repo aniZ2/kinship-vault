@@ -1,0 +1,285 @@
+/* src/components/BookCompiler/CompileBookButton.module.css */
+
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Compile button */
+.compileButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  color: #fff;
+  font-weight: 600;
+  font-size: 15px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
+}
+
+.compileButton:hover:not(:disabled) {
+  background: linear-gradient(135deg, #6d28d9, #5b21b6);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+}
+
+.compileButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.buttonSpinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.cancelButton {
+  padding: 8px 16px;
+  background: #f3f4f6;
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.cancelButton:hover {
+  background: #e5e7eb;
+}
+
+.errorText {
+  color: #dc2626;
+  font-size: 14px;
+  margin: 0;
+}
+
+/* Modal */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 16px;
+  max-width: 480px;
+  width: 100%;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px;
+}
+
+.modalHeader[data-severity="critical"] {
+  background: #fef2f2;
+  border-bottom: 1px solid #fecaca;
+}
+
+.modalHeader[data-severity="warning"] {
+  background: #fffbeb;
+  border-bottom: 1px solid #fde68a;
+}
+
+.modalIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.modalHeader[data-severity="critical"] .modalIcon {
+  background: #dc2626;
+  color: #fff;
+}
+
+.modalHeader[data-severity="warning"] .modalIcon {
+  background: #f59e0b;
+  color: #fff;
+}
+
+.modalTitle {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.modalHeader[data-severity="critical"] .modalTitle {
+  color: #991b1b;
+}
+
+.modalHeader[data-severity="warning"] .modalTitle {
+  color: #92400e;
+}
+
+.modalBody {
+  padding: 20px;
+}
+
+.modalDesc {
+  font-size: 15px;
+  color: #4b5563;
+  margin: 0 0 16px;
+  line-height: 1.5;
+}
+
+.affectedPages {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.affectedTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b7280;
+  margin: 0 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.pageList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pageItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.pageItem:last-child {
+  border-bottom: none;
+}
+
+.pageName {
+  flex: 1;
+  font-size: 14px;
+  color: #374151;
+}
+
+.criticalBadge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #dc2626;
+  background: #fef2f2;
+  padding: 2px 8px;
+  border-radius: 9999px;
+}
+
+.warningBadge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #d97706;
+  background: #fffbeb;
+  padding: 2px 8px;
+  border-radius: 9999px;
+}
+
+.morePages {
+  font-size: 13px;
+  color: #9ca3af;
+  padding-top: 8px;
+  font-style: italic;
+}
+
+.recommendation {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.modalFooter {
+  display: flex;
+  gap: 12px;
+  padding: 16px 20px;
+  background: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+}
+
+.cancelModalButton {
+  flex: 1;
+  padding: 12px 20px;
+  background: #fff;
+  color: #374151;
+  font-weight: 600;
+  font-size: 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.cancelModalButton:hover {
+  background: #f3f4f6;
+}
+
+.proceedButton {
+  flex: 1;
+  padding: 12px 20px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.proceedButton[data-severity="critical"] {
+  background: #dc2626;
+}
+
+.proceedButton[data-severity="critical"]:hover {
+  background: #b91c1c;
+}
+
+.proceedButton[data-severity="warning"] {
+  background: #f59e0b;
+}
+
+.proceedButton[data-severity="warning"]:hover {
+  background: #d97706;
+}
