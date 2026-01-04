@@ -638,6 +638,208 @@
 }
 
 /* ============================================================================
+   PRINT OPTIONS
+   ============================================================================ */
+
+.hiw-print-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.hiw-print-card {
+  background: #fff;
+  border-radius: 1rem;
+  padding: 2rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  text-align: center;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.hiw-print-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1);
+}
+
+.hiw-print-featured {
+  border-color: #e11d48;
+  box-shadow: 0 8px 32px rgba(225, 29, 72, 0.15);
+}
+
+.hiw-print-badge {
+  position: absolute;
+  top: -0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #e11d48 0%, #f43f5e 100%);
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.375rem 1rem;
+  border-radius: 100px;
+  white-space: nowrap;
+}
+
+.hiw-print-card h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--foreground);
+  margin: 0 0 0.5rem;
+}
+
+.hiw-print-size {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--foreground);
+  margin: 0 0 0.25rem;
+}
+
+.hiw-print-price {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--primary);
+  margin: 0 0 1.5rem;
+}
+
+.hiw-print-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+}
+
+.hiw-print-card ul li {
+  font-size: 0.875rem;
+  color: var(--foreground-muted);
+  padding: 0.5rem 0;
+  padding-left: 1.5rem;
+  position: relative;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.hiw-print-card ul li:last-child {
+  border-bottom: none;
+}
+
+.hiw-print-card ul li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  background: #10b981;
+  border-radius: 50%;
+}
+
+.hiw-print-note {
+  text-align: center;
+  font-size: 0.9375rem;
+  color: var(--muted);
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .hiw-print-grid {
+    grid-template-columns: 1fr;
+    max-width: 360px;
+    margin: 0 auto 2rem;
+  }
+}
+
+/* ============================================================================
+   PRICING (3-column version)
+   ============================================================================ */
+
+.hiw-pricing-grid-new {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+@media (max-width: 900px) {
+  .hiw-pricing-grid-new {
+    grid-template-columns: 1fr;
+    max-width: 360px;
+    margin: 0 auto;
+  }
+}
+
+/* ============================================================================
+   FAQ
+   ============================================================================ */
+
+.hiw-faq-list {
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.hiw-faq-item {
+  background: #fff;
+  border-radius: 0.75rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+.hiw-faq-item summary {
+  padding: 1.25rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--foreground);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  list-style: none;
+  transition: background 0.2s ease;
+}
+
+.hiw-faq-item summary::-webkit-details-marker {
+  display: none;
+}
+
+.hiw-faq-item summary::after {
+  content: '+';
+  font-size: 1.5rem;
+  font-weight: 300;
+  color: var(--muted);
+  transition: transform 0.2s ease;
+}
+
+.hiw-faq-item[open] summary::after {
+  transform: rotate(45deg);
+}
+
+.hiw-faq-item summary:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.hiw-faq-item p {
+  padding: 0 1.5rem 1.25rem;
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--foreground-muted);
+  line-height: 1.7;
+}
+
+.hiw-faq-item p a {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.hiw-faq-item p a:hover {
+  text-decoration: underline;
+}
+
+/* ============================================================================
    CTA
    ============================================================================ */
 

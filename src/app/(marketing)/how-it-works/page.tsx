@@ -7,11 +7,11 @@ import "@/styles/how-it-works.css";
 export const metadata: Metadata = {
   title: "How It Works - Kinship Vault",
   description:
-    "Learn how Kinship Vault helps families create collaborative digital scrapbooks. Create your family space, invite members, and preserve memories together.",
+    "Learn how Kinship Vault helps families create collaborative scrapbooks. Everyone adds their own pages. Print beautiful hardcover books.",
   openGraph: {
     title: "How It Works - Kinship Vault",
     description:
-      "Learn how Kinship Vault helps families create collaborative digital scrapbooks.",
+      "Learn how Kinship Vault helps families create collaborative scrapbooks together.",
     type: "website",
   },
 };
@@ -27,6 +27,12 @@ export default function HowItWorksPage() {
           </Link>
 
           <nav className="nav">
+            <Link href="/#features" className="nav-link">
+              Features
+            </Link>
+            <Link href="/#pricing" className="nav-link">
+              Pricing
+            </Link>
             <Link href="/how-it-works" className="nav-link active">
               How it works
             </Link>
@@ -46,7 +52,8 @@ export default function HowItWorksPage() {
           <div className="wrap">
             <h1>How Kinship Vault Works</h1>
             <p className="hiw-subtitle">
-              A private space for your family to collect, create, and preserve memories together.
+              A shared space where your whole family creates scrapbooks together.
+              Each person adds their own pages. One book holds everyone&apos;s story.
             </p>
           </div>
         </section>
@@ -57,17 +64,17 @@ export default function HowItWorksPage() {
             <div className="hiw-intro">
               <h2>The Big Picture</h2>
               <p>
-                Kinship Vault is a collaborative family scrapbook. Instead of photos scattered
-                across phones and cloud drives, your family has one private place where everyone
-                can contribute memories and create beautiful pages together.
+                No more chasing photos after every event. No more one person doing all the work.
+                Kinship Vault gives your family one private place where everyone contributes
+                their own memories and perspectives.
               </p>
             </div>
 
             <div className="hiw-flow">
               <div className="hiw-flow-step">
                 <div className="hiw-flow-icon">1</div>
-                <h3>Create Your Family Space</h3>
-                <p>Sign up and create a family vault. You become the owner with full control.</p>
+                <h3>Create Your Vault</h3>
+                <p>Start a family scrapbook in seconds. You become the owner with full control.</p>
               </div>
               <div className="hiw-flow-arrow">
                 <svg width="40" height="24" viewBox="0 0 40 24" fill="none">
@@ -77,7 +84,7 @@ export default function HowItWorksPage() {
               <div className="hiw-flow-step">
                 <div className="hiw-flow-icon">2</div>
                 <h3>Invite Your Family</h3>
-                <p>Share an invite code with up to 5 family members who can edit and create.</p>
+                <p>Share an invite code with the people who matter. Everyone can add pages.</p>
               </div>
               <div className="hiw-flow-arrow">
                 <svg width="40" height="24" viewBox="0 0 40 24" fill="none">
@@ -86,8 +93,18 @@ export default function HowItWorksPage() {
               </div>
               <div className="hiw-flow-step">
                 <div className="hiw-flow-icon">3</div>
-                <h3>Create Together</h3>
-                <p>Add photos, write captions, decorate pages with stickers and washi tape.</p>
+                <h3>Everyone Contributes</h3>
+                <p>Each person creates from their perspective. Their photos. Their words. Their design.</p>
+              </div>
+              <div className="hiw-flow-arrow">
+                <svg width="40" height="24" viewBox="0 0 40 24" fill="none">
+                  <path d="M0 12h36M28 4l8 8-8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <div className="hiw-flow-step">
+                <div className="hiw-flow-icon">4</div>
+                <h3>Print When Ready</h3>
+                <p>Turn your vault into a beautiful hardcover book. Or keep adding forever.</p>
               </div>
             </div>
           </div>
@@ -99,10 +116,10 @@ export default function HowItWorksPage() {
             <div className="hiw-split">
               <div className="hiw-split-content">
                 <span className="hiw-label">The Editor</span>
-                <h2>Design Pages Like a Real Scrapbook</h2>
+                <h2>Design Pages Your Way</h2>
                 <p>
-                  Our canvas editor feels like crafting with paper, tape, and scissors—but digital.
-                  Drag photos anywhere, rotate them, add frames, and layer stickers on top.
+                  This isn&apos;t a template prison. Our canvas editor gives you real creative control —
+                  like crafting with paper, tape, and scissors, but digital.
                 </p>
                 <ul className="hiw-list">
                   <li>
@@ -111,7 +128,7 @@ export default function HowItWorksPage() {
                         <path d="M20 6L9 17l-5-5"/>
                       </svg>
                     </span>
-                    <span><strong>Photos</strong> — Frames, shapes (heart, circle, star), shadows, borders</span>
+                    <span><strong>Photos</strong> — Drag anywhere, crop, rotate, add frames and shapes</span>
                   </li>
                   <li>
                     <span className="hiw-check">
@@ -119,7 +136,7 @@ export default function HowItWorksPage() {
                         <path d="M20 6L9 17l-5-5"/>
                       </svg>
                     </span>
-                    <span><strong>Text</strong> — 12 fonts, colors, effects like neon and retro</span>
+                    <span><strong>Text</strong> — Multiple fonts, colors, captions, and notes</span>
                   </li>
                   <li>
                     <span className="hiw-check">
@@ -136,6 +153,14 @@ export default function HowItWorksPage() {
                       </svg>
                     </span>
                     <span><strong>Backgrounds</strong> — Colors, patterns, or upload your own</span>
+                  </li>
+                  <li>
+                    <span className="hiw-check">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                        <path d="M20 6L9 17l-5-5"/>
+                      </svg>
+                    </span>
+                    <span><strong>Works Everywhere</strong> — Phone, tablet, or computer</span>
                   </li>
                 </ul>
               </div>
@@ -224,15 +249,15 @@ export default function HowItWorksPage() {
           </div>
         </section>
 
-        {/* Event Pack */}
+        {/* Event Pack / Guest Uploads */}
         <section className="hiw-section hiw-alt hiw-event">
           <div className="wrap">
             <div className="hiw-intro">
-              <span className="hiw-label hiw-label-accent">Event Pack</span>
-              <h2>Perfect for Weddings &amp; Reunions</h2>
+              <span className="hiw-label hiw-label-accent">Guest Uploads</span>
+              <h2>Every Phone at Your Event. One Place for All the Photos.</h2>
               <p>
-                Hosting a big event? The Event Pack lets unlimited guests upload photos via QR code—no
-                app download needed. You curate, they contribute.
+                Weddings. Reunions. Milestone birthdays. The best photos are trapped in your guests&apos; phones.
+                Kinship Vault gives you a QR code — guests scan and upload, no app needed.
               </p>
             </div>
 
@@ -248,7 +273,7 @@ export default function HowItWorksPage() {
                   </svg>
                 </div>
                 <h4>Generate QR Code</h4>
-                <p>Print it on table cards or display at the venue</p>
+                <p>Print on table cards or display at the venue</p>
               </div>
 
               <div className="hiw-event-step">
@@ -261,7 +286,7 @@ export default function HowItWorksPage() {
                   </svg>
                 </div>
                 <h4>Guests Upload</h4>
-                <p>Scan, snap, submit—no account needed</p>
+                <p>Scan, snap, submit — no account needed</p>
               </div>
 
               <div className="hiw-event-step">
@@ -280,17 +305,17 @@ export default function HowItWorksPage() {
                 <div className="hiw-event-num">4</div>
                 <div className="hiw-event-icon">
                   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
                   </svg>
                 </div>
-                <h4>Guests View</h4>
-                <p>Approved guests get a view-only link to revisit</p>
+                <h4>Add to Book</h4>
+                <p>The best photos become pages in your scrapbook</p>
               </div>
             </div>
 
             <div className="hiw-event-tiers">
-              <h3>Who Can Do What</h3>
+              <h3>Their Photos. Your Curation. Everyone&apos;s Memory.</h3>
               <div className="hiw-tiers-table">
                 <div className="hiw-tier-row hiw-tier-header">
                   <div>Role</div>
@@ -299,79 +324,197 @@ export default function HowItWorksPage() {
                 </div>
                 <div className="hiw-tier-row">
                   <div><strong>Editors</strong></div>
-                  <div>5 trusted people (e.g., bride, groom, parents)</div>
+                  <div>5 trusted people (bride, groom, parents)</div>
                   <div>Full edit access</div>
                 </div>
                 <div className="hiw-tier-row">
                   <div><strong>Guest Uploaders</strong></div>
-                  <div>Unlimited (all your event guests)</div>
-                  <div>Upload only via QR</div>
+                  <div>Unlimited (all event guests)</div>
+                  <div>Upload via QR only</div>
                 </div>
                 <div className="hiw-tier-row">
                   <div><strong>Guest Viewers</strong></div>
-                  <div>Everyone who uploaded</div>
-                  <div>View-only link</div>
+                  <div>Anyone with view link</div>
+                  <div>View-only access</div>
                 </div>
               </div>
             </div>
           </div>
         </section>
 
+        {/* Print Options */}
+        <section className="hiw-section" id="print">
+          <div className="wrap">
+            <div className="hiw-intro">
+              <span className="hiw-label">Print Options</span>
+              <h2>Beautiful Books You Can Hold</h2>
+              <p>
+                When you&apos;re ready, turn your digital scrapbook into a beautiful hardcover book.
+                Professional quality printing, delivered to your door.
+              </p>
+            </div>
+
+            <div className="hiw-print-grid">
+              <div className="hiw-print-card">
+                <h3>Standard Hardcover</h3>
+                <p className="hiw-print-size">8&quot; × 8&quot;</p>
+                <p className="hiw-print-price">Starting at $12</p>
+                <ul>
+                  <li>Premium matte cover</li>
+                  <li>Thick 100lb pages</li>
+                  <li>Lay-flat binding</li>
+                </ul>
+              </div>
+
+              <div className="hiw-print-card hiw-print-featured">
+                <div className="hiw-print-badge">Most Popular</div>
+                <h3>Large Hardcover</h3>
+                <p className="hiw-print-size">10&quot; × 10&quot;</p>
+                <p className="hiw-print-price">Starting at $18</p>
+                <ul>
+                  <li>Premium matte cover</li>
+                  <li>Thick 100lb pages</li>
+                  <li>Lay-flat binding</li>
+                </ul>
+              </div>
+
+              <div className="hiw-print-card">
+                <h3>Portrait Hardcover</h3>
+                <p className="hiw-print-size">8.5&quot; × 11&quot;</p>
+                <p className="hiw-print-price">Starting at $15</p>
+                <ul>
+                  <li>Premium matte cover</li>
+                  <li>Thick 100lb pages</li>
+                  <li>Lay-flat binding</li>
+                </ul>
+              </div>
+            </div>
+
+            <p className="hiw-print-note">
+              Pricing varies by page count. Additional pages ~$0.50 each. Shipping calculated at checkout.
+            </p>
+          </div>
+        </section>
+
         {/* Pricing */}
-        <section className="hiw-section">
+        <section className="hiw-section hiw-alt">
           <div className="wrap">
             <div className="hiw-intro">
               <span className="hiw-label">Pricing</span>
-              <h2>Simple Plans for Every Family</h2>
-              <p>Start free, upgrade when you need more space or features.</p>
+              <h2>Start Free. Upgrade When You Need More.</h2>
+              <p>No credit card required to start. Print costs are separate.</p>
             </div>
 
-            <div className="hiw-pricing-grid">
+            <div className="hiw-pricing-grid-new">
               <div className="hiw-pricing-card">
                 <h3>Free</h3>
-                <div className="hiw-price">$0</div>
-                <p className="hiw-price-desc">Perfect for trying it out</p>
+                <div className="hiw-price">$0<span>/forever</span></div>
+                <p className="hiw-price-desc">Perfect for your first family scrapbook</p>
                 <ul>
-                  <li>Join up to 2 families</li>
-                  <li>5 members per family</li>
-                  <li>1 GB storage</li>
-                </ul>
-              </div>
-
-              <div className="hiw-pricing-card">
-                <h3>User Pro</h3>
-                <div className="hiw-price">$49<span>/year</span></div>
-                <p className="hiw-price-desc">For the family connector</p>
-                <ul>
-                  <li>Join up to 5 families</li>
-                  <li>Great for in-laws, cousins</li>
-                  <li>1 GB storage per family</li>
-                </ul>
-              </div>
-
-              <div className="hiw-pricing-card">
-                <h3>Family Pro</h3>
-                <div className="hiw-price">$199<span>/year</span></div>
-                <p className="hiw-price-desc">For ongoing scrapbooking</p>
-                <ul>
-                  <li>Generous storage</li>
-                  <li>5 members</li>
-                  <li>Limited guest uploads</li>
+                  <li>2 family vaults</li>
+                  <li>5 members per vault</li>
+                  <li>1GB storage</li>
+                  <li>Full editor access</li>
+                  <li>Pay only when you print</li>
                 </ul>
               </div>
 
               <div className="hiw-pricing-card hiw-pricing-featured">
-                <div className="hiw-pricing-badge">Best for Events</div>
-                <h3>Event Pack</h3>
-                <div className="hiw-price">$299<span>/year</span></div>
-                <p className="hiw-price-desc">Weddings, reunions, parties</p>
+                <div className="hiw-pricing-badge">Most Popular</div>
+                <h3>Family Pro</h3>
+                <div className="hiw-price">$199<span>/year</span></div>
+                <p className="hiw-price-desc">For families with years of memories</p>
                 <ul>
-                  <li>Unlimited storage</li>
-                  <li>Unlimited guest uploads</li>
-                  <li>Unlimited view links</li>
-                  <li>5 free printed yearbooks</li>
+                  <li>50GB storage</li>
+                  <li>Everything in Free</li>
+                  <li>Priority support</li>
                 </ul>
               </div>
+
+              <div className="hiw-pricing-card">
+                <h3>Event Pack</h3>
+                <div className="hiw-price">$299<span>/year</span></div>
+                <p className="hiw-price-desc">Weddings, reunions, milestone birthdays</p>
+                <ul>
+                  <li>Unlimited storage</li>
+                  <li>Unlimited guest uploads via QR</li>
+                  <li>Unlimited view-only links</li>
+                  <li>5 free printed yearbooks</li>
+                  <li>90-day editing windows</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* FAQ */}
+        <section className="hiw-section" id="faq">
+          <div className="wrap">
+            <div className="hiw-intro">
+              <span className="hiw-label">FAQ</span>
+              <h2>Common Questions</h2>
+            </div>
+
+            <div className="hiw-faq-list">
+              <details className="hiw-faq-item">
+                <summary>How is this different from a shared Google Photos album?</summary>
+                <p>
+                  Google Photos is great for storing photos, but it&apos;s not a scrapbook. Kinship Vault
+                  lets each family member design their own pages — adding text, stickers, backgrounds,
+                  and layouts. It&apos;s about creating, not just dumping photos.
+                </p>
+              </details>
+
+              <details className="hiw-faq-item">
+                <summary>Can grandparents really use this?</summary>
+                <p>
+                  Yes! Our editor is designed to be intuitive. Drag photos, tap to add text,
+                  choose a background. If they can use Facebook, they can use Kinship Vault.
+                  And we&apos;re always here to help.
+                </p>
+              </details>
+
+              <details className="hiw-faq-item">
+                <summary>What happens to my photos if I cancel?</summary>
+                <p>
+                  You can download all your content at any time. If you cancel a paid plan,
+                  you keep access to everything in your free tier limits. We never delete
+                  your photos without warning.
+                </p>
+              </details>
+
+              <details className="hiw-faq-item">
+                <summary>How long does printing take?</summary>
+                <p>
+                  Books typically ship within 5-7 business days. Delivery time depends on your
+                  location — usually 3-7 additional days for US addresses.
+                </p>
+              </details>
+
+              <details className="hiw-faq-item">
+                <summary>Can I order multiple copies of a book?</summary>
+                <p>
+                  Absolutely! Perfect for grandparents, aunts, uncles, or anyone who wants their
+                  own copy. Each additional copy is discounted.
+                </p>
+              </details>
+
+              <details className="hiw-faq-item">
+                <summary>Is my family&apos;s content private?</summary>
+                <p>
+                  Completely. Only people you explicitly invite can see your vault. We don&apos;t
+                  use your photos for advertising or AI training. Your memories are yours.
+                </p>
+              </details>
+
+              <details className="hiw-faq-item">
+                <summary>What if I need help?</summary>
+                <p>
+                  Email us at <a href="mailto:support@kinshipvault.com">support@kinshipvault.com</a>.
+                  We typically respond within 24 hours and we genuinely care about helping families
+                  preserve their stories.
+                </p>
+              </details>
             </div>
           </div>
         </section>
@@ -379,11 +522,11 @@ export default function HowItWorksPage() {
         {/* CTA */}
         <section className="hiw-section hiw-cta">
           <div className="wrap">
-            <h2>Ready to Start Your Family Story?</h2>
+            <h2>Ready to Start Your Family&apos;s Story?</h2>
             <p>Create your vault in 30 seconds. No credit card required.</p>
             <div className="hiw-cta-buttons">
               <Link href="/signin" className="btn">
-                Create your family space
+                Start Your Family&apos;s Vault
               </Link>
               <Link href="/" className="btn ghost">
                 Back to home
@@ -395,12 +538,33 @@ export default function HowItWorksPage() {
 
       <footer className="landing-footer">
         <div className="wrap footer-inner">
-          <div>&copy; {new Date().getFullYear()} Kinship Vault</div>
-          <div className="footer-links">
-            <Link href="/how-it-works">How it works</Link>
-            <a href="#">Privacy</a>
-            <a href="#">Terms</a>
+          <div className="footer-brand">
+            <div className="brand">
+              <div className="brand-mark">KV</div>
+              <div className="brand-text">Kinship Vault</div>
+            </div>
+            <p className="footer-tagline">Your family&apos;s story — told by everyone who lived it.</p>
           </div>
+
+          <div className="footer-links-grid">
+            <div className="footer-column">
+              <h4>Product</h4>
+              <Link href="/#features">Features</Link>
+              <Link href="/#pricing">Pricing</Link>
+              <Link href="/how-it-works#print">Print Options</Link>
+              <Link href="/how-it-works#faq">FAQ</Link>
+            </div>
+            <div className="footer-column">
+              <h4>Company</h4>
+              <Link href="/privacy">Privacy</Link>
+              <Link href="/terms">Terms</Link>
+              <a href="mailto:hello@kinshipvault.com">Contact</a>
+            </div>
+          </div>
+        </div>
+
+        <div className="wrap footer-bottom">
+          <p>&copy; {new Date().getFullYear()} Osifo Holdings L.L.C.</p>
         </div>
       </footer>
     </div>
