@@ -68,6 +68,10 @@ export interface ScrapbookEditorProps {
   mode?: 'edit' | 'view';
   initialState?: EditorState | null;
   storageInfo?: StorageInfo | null;
+  /** Called periodically with current state for localStorage backup */
+  onStateChange?: (state: EditorState) => void;
+  /** Called after successful save to Firestore */
+  onSaveComplete?: () => void;
 }
 
 export interface BackgroundOption {

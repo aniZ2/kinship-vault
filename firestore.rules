@@ -137,7 +137,33 @@ service cloud.firestore {
       // -----------------------------------------------------------------------
 
       match /pages/{pageId} {
-        // Members can read pages (even if archived)
+        // Helper: Check if page is admin-frozen
+        function isPageFrozen() {
+          return resource.data.isLocked == true;
+        }
+
+        // Helper: Check if user can edit based on session lock
+        // Lock is available if: no lock, user holds it, or it expired
+        function canEditSessionLock() {
+          return resource.data.lockedBy == null
+              || resource.data.lockedBy == request.auth.uid
+              || resource.data.lockExpiresAt == null
+              || resource.data.lockExpiresAt < request.time;
+        }
+
+        // Helper: Check if update only affects lock fields
+        function isLockFieldsOnly() {
+          return request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['isLocked', 'lockedAt', 'lockedByAdmin', 'lockedBy', 'lockedByName', 'lockExpiresAt']);
+        }
+
+        // Helper: Check if update only affects session lock fields
+        function isSessionLockFieldsOnly() {
+          return request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['lockedBy', 'lockedByName', 'lockExpiresAt']);
+        }
+
+        // Members can read pages (even if locked/archived)
         allow read: if isSignedIn() && isMember(familyId);
 
         // Members can create pages if within storage limit AND has edit access
@@ -149,18 +175,31 @@ service cloud.firestore {
                          request.resource.data.createdBy == userId() &&
                          request.resource.data.familyId == familyId;
 
-        // Owner/Admin can edit any page, or creator can edit their own
-        // Event Pack: blocked if edit window expired (archived)
-        allow update: if isSignedIn() &&
-                         isMember(familyId) &&
-                         hasEditAccess(familyId) &&
-                         (isOwnerOrAdmin(familyId) || resource.data.createdBy == userId()) &&
-                         // Cannot change creator or familyId
-                         request.resource.data.createdBy == resource.data.createdBy &&
-                         request.resource.data.familyId == resource.data.familyId;
+        // UPDATE RULES - Multiple cases based on lock type
+        allow update: if isSignedIn() && isMember(familyId) && hasEditAccess(familyId) && (
+          // CASE 1: Admin toggling isLocked (owner/admin only)
+          (isOwnerOrAdmin(familyId) && isLockFieldsOnly())
 
-        // Owner/Admin can delete pages (only if not archived)
-        allow delete: if isSignedIn() && isOwnerOrAdmin(familyId) && hasEditAccess(familyId);
+          // CASE 2: Acquiring/extending/releasing session lock (any member, page not frozen)
+          || (!isPageFrozen() && isSessionLockFieldsOnly() && canEditSessionLock())
+
+          // CASE 3: Normal content update
+          // - Page not frozen
+          // - User holds session lock (or lock available)
+          // - User is owner/admin OR page creator
+          // - Cannot change creator or familyId
+          || (!isPageFrozen() &&
+              canEditSessionLock() &&
+              (isOwnerOrAdmin(familyId) || resource.data.createdBy == userId()) &&
+              request.resource.data.createdBy == resource.data.createdBy &&
+              request.resource.data.familyId == resource.data.familyId)
+        );
+
+        // Owner/Admin can delete pages (only if not archived and not frozen)
+        allow delete: if isSignedIn() &&
+                         isOwnerOrAdmin(familyId) &&
+                         hasEditAccess(familyId) &&
+                         !isPageFrozen();
       }
 
       // -----------------------------------------------------------------------

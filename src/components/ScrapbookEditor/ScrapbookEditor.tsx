@@ -13,7 +13,7 @@ import { StorageIndicator } from '@/components/StorageIndicator';
 import { checkClientRateLimit, RATE_LIMITS } from '@/lib/rateLimit';
 import styles from './ScrapbookEditor.module.css';
 
-export default function ScrapbookEditor({ mode = 'edit', initialState, storageInfo }: ScrapbookEditorProps) {
+export default function ScrapbookEditor({ mode = 'edit', initialState, storageInfo, onStateChange, onSaveComplete }: ScrapbookEditorProps) {
   const router = useRouter();
   const params = useParams();
   const familyId = params?.familyId as string;
@@ -100,6 +100,61 @@ export default function ScrapbookEditor({ mode = 'edit', initialState, storageIn
 
   // Filter picker state
   const [showFilterPicker, setShowFilterPicker] = useState(false);
+
+  // Track unsaved changes
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const initialStateRef = useRef(initialState);
+
+  // Track unsaved changes compared to initial state
+  useEffect(() => {
+    if (viewOnly) return;
+    const currentState = { background, items, customBgUrl };
+    const initial = initialStateRef.current || { background: 'cream', items: [], customBgUrl: null };
+    const changed = JSON.stringify(currentState) !== JSON.stringify({
+      background: initial.background || 'cream',
+      items: initial.items || [],
+      customBgUrl: initial.customBgUrl || null,
+    });
+    setHasUnsavedChanges(changed);
+  }, [background, items, customBgUrl, viewOnly]);
+
+  // Warn before leaving with unsaved changes
+  useEffect(() => {
+    if (viewOnly) return;
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges, viewOnly]);
+
+  // Auto-save to localStorage every 30 seconds when there are changes
+  useEffect(() => {
+    if (viewOnly || !onStateChange) return;
+    if (!hasUnsavedChanges) return;
+
+    const timer = setTimeout(() => {
+      onStateChange({ background, items, customBgUrl: customBgUrl || undefined });
+    }, 30000);
+
+    return () => clearTimeout(timer);
+  }, [background, items, customBgUrl, hasUnsavedChanges, viewOnly, onStateChange]);
+
+  // Also save to localStorage on any state change (debounced)
+  const lastSaveRef = useRef(0);
+  useEffect(() => {
+    if (viewOnly || !onStateChange) return;
+
+    // Debounce: only save if 5 seconds passed since last save
+    const now = Date.now();
+    if (now - lastSaveRef.current < 5000) return;
+
+    lastSaveRef.current = now;
+    onStateChange({ background, items, customBgUrl: customBgUrl || undefined });
+  }, [background, items, customBgUrl, viewOnly, onStateChange]);
 
   // Get selected item
   const selectedItem = items.find(i => i.id === selectedId);
@@ -982,6 +1037,10 @@ export default function ScrapbookEditor({ mode = 'edit', initialState, storageIn
       }
 
       console.log('Save successful');
+
+      // Notify parent that save completed (for lock release and localStorage cleanup)
+      onSaveComplete?.();
+
       router.push(`/families/${familyId}/story`);
     } catch (err) {
       console.error('Save failed:', err);
@@ -1211,6 +1270,7 @@ export default function ScrapbookEditor({ mode = 'edit', initialState, storageIn
             )}
             <button className={styles.saveBtn} onClick={handleSave} disabled={saving || viewOnly}>
               {saving ? 'Saving...' : 'Done'}
+              {hasUnsavedChanges && !saving && <span className={styles.unsavedDot} />}
             </button>
           </div>
         </div>

@@ -2,6 +2,7 @@
 // Using cors middleware for proper CORS handling
 
 const { onRequest } = require("firebase-functions/v2/https");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const {
   onDocumentCreated,
   onDocumentWritten,
@@ -643,3 +644,147 @@ exports.onSubscriptionChange = onDocumentUpdated(
     }
   }
 );
+
+// ───────────────────────────────────────────────────────────────────────────────
+// PAGE LOCK ENFORCEMENT
+// Handles automatic page locking after 7 days and session lock cleanup
+// ───────────────────────────────────────────────────────────────────────────────
+
+const { Timestamp } = require("firebase-admin/firestore");
+
+/**
+ * Scheduled function that runs every 15 minutes to:
+ * 1. Auto-lock pages older than 7 days (sets isLocked: true)
+ * 2. Clean up expired session locks
+ */
+exports.enforcePageLocks = onSchedule("every 15 minutes", async () => {
+  const db = getFirestore();
+  const now = Timestamp.now();
+  const sevenDaysAgo = Timestamp.fromDate(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
+
+  const fams = await db.collection("families").get();
+  const writes = [];
+  let batch = db.batch();
+  let ops = 0;
+
+  for (const fam of fams.docs) {
+    const pagesRef = fam.ref.collection("pages");
+
+    // 1) Auto-lock pages older than 7 days that aren't already locked
+    const oldPagesNotLocked = await pagesRef
+      .where("createdAt", "<=", sevenDaysAgo)
+      .where("isLocked", "==", false)
+      .get();
+
+    oldPagesNotLocked.forEach((p) => {
+      batch.update(p.ref, {
+        isLocked: true,
+        lockedAt: now,
+        lockedByAdmin: "system",
+      });
+      if (++ops >= 450) {
+        writes.push(batch);
+        batch = db.batch();
+        ops = 0;
+      }
+    });
+
+    // Also check pages where isLocked field doesn't exist yet (legacy pages)
+    const oldPagesNoField = await pagesRef
+      .where("createdAt", "<=", sevenDaysAgo)
+      .get();
+
+    oldPagesNoField.forEach((p) => {
+      const data = p.data();
+      if (data.isLocked !== undefined) return;
+
+      batch.update(p.ref, {
+        isLocked: true,
+        lockedAt: now,
+        lockedByAdmin: "system",
+      });
+      if (++ops >= 450) {
+        writes.push(batch);
+        batch = db.batch();
+        ops = 0;
+      }
+    });
+
+    // 2) Clean up expired session locks
+    const expiredLocks = await pagesRef
+      .where("lockExpiresAt", "<=", now)
+      .get();
+
+    expiredLocks.forEach((p) => {
+      const data = p.data();
+      if (data.lockedBy) {
+        batch.update(p.ref, {
+          lockedBy: FieldValue.delete(),
+          lockedByName: FieldValue.delete(),
+          lockExpiresAt: FieldValue.delete(),
+        });
+        if (++ops >= 450) {
+          writes.push(batch);
+          batch = db.batch();
+          ops = 0;
+        }
+      }
+    });
+  }
+
+  writes.push(batch);
+  await Promise.all(writes.map((b) => b.commit()));
+  console.log(`enforcePageLocks completed: ${ops} operations in ${writes.length} batches`);
+});
+
+/**
+ * Migration function to convert old `locked` field to `isLocked`
+ * Runs monthly at 3 AM on the 1st to catch stragglers
+ */
+exports.migrateLockedField = onSchedule("0 3 1 * *", async () => {
+  const db = getFirestore();
+  const fams = await db.collection("families").get();
+  let migrated = 0;
+
+  for (const fam of fams.docs) {
+    const oldLockedPages = await fam.ref
+      .collection("pages")
+      .where("locked", "==", true)
+      .get();
+
+    for (const page of oldLockedPages.docs) {
+      const data = page.data();
+      if (data.isLocked === undefined) {
+        await page.ref.update({
+          isLocked: true,
+          lockedAt: FieldValue.serverTimestamp(),
+          lockedByAdmin: "migration",
+          locked: FieldValue.delete(),
+          unlockExpiresAt: FieldValue.delete(),
+          unlockUsed: FieldValue.delete(),
+        });
+        migrated++;
+      }
+    }
+
+    const oldUnlockedPages = await fam.ref
+      .collection("pages")
+      .where("locked", "==", false)
+      .get();
+
+    for (const page of oldUnlockedPages.docs) {
+      const data = page.data();
+      if (data.isLocked === undefined) {
+        await page.ref.update({
+          isLocked: false,
+          locked: FieldValue.delete(),
+          unlockExpiresAt: FieldValue.delete(),
+          unlockUsed: FieldValue.delete(),
+        });
+        migrated++;
+      }
+    }
+  }
+
+  console.log(`migrateLockedField completed: ${migrated} pages migrated`);
+});
