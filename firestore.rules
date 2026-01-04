@@ -38,11 +38,6 @@ service cloud.firestore {
       return hasRole(familyId, 'owner');
     }
     
-    // Check if user is admin
-    function isAdmin(familyId) {
-      return hasRole(familyId, 'admin');
-    }
-    
     // Check if user is owner or admin
     function isOwnerOrAdmin(familyId) {
       return isSignedIn() && 
@@ -89,23 +84,6 @@ service cloud.firestore {
         || (sub.type != 'free' && sub.type != 'family_pro' && sub.type != 'event_pack');
     }
 
-    // Check if family is in archived (view-only) mode
-    // Only applies to Event Pack after edit window expires
-    function isArchived(familyId) {
-      let fam = getFamily(familyId).data;
-      let sub = fam.subscription;
-
-      // Only Event Pack can be archived
-      return sub != null
-        && sub.type == 'event_pack'
-        && (
-          // Explicitly marked as archived
-          sub.isArchived == true
-          // Or edit window expired
-          || (sub.editWindowEnd != null && request.time >= sub.editWindowEnd)
-        );
-    }
-    
     // =========================================================================
     // USER PROFILES
     // =========================================================================
